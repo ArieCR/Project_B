@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>LTE Transmission & Reception Layer Explorer</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: radial-gradient(circle at 18% 24%, rgba(76, 144, 255, 0.24), rgba(15, 23, 42, 0.06));
+        --fg: #0f172a;
+        --card: rgba(255, 255, 255, 0.88);
+        --shadow: 0 32px 74px rgba(15, 23, 42, 0.22);
+        --accent: #2563eb;
+        --accent-soft: rgba(37, 99, 235, 0.14);
+        --accent-strong: rgba(37, 99, 235, 0.24);
+        --muted: rgba(30, 41, 59, 0.7);
+        --border: rgba(148, 163, 184, 0.28);
+        --rs: rgba(14, 165, 233, 0.76);
+        --pss: rgba(134, 239, 172, 0.8);
+        --data: rgba(99, 102, 241, 0.78);
+        font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: radial-gradient(circle at 20% 22%, rgba(99, 102, 241, 0.26), rgba(15, 23, 42, 0.92));
+          --fg: rgba(226, 232, 255, 0.94);
+          --card: rgba(13, 22, 42, 0.76);
+          --shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.26);
+          --accent: #60a5fa;
+          --accent-soft: rgba(96, 165, 250, 0.18);
+          --accent-strong: rgba(96, 165, 250, 0.28);
+          --muted: rgba(203, 213, 225, 0.78);
+          --border: rgba(148, 163, 184, 0.34);
+          --rs: rgba(56, 189, 248, 0.9);
+          --pss: rgba(134, 239, 172, 0.9);
+          --data: rgba(129, 140, 248, 0.94);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        background: var(--bg);
+        color: var(--fg);
+      }
+
+      main {
+        width: min(1080px, 100%);
+        padding: clamp(36px, 5vw, 64px) clamp(22px, 6vw, 64px);
+        display: flex;
+        flex-direction: column;
+        gap: clamp(32px, 4vw, 48px);
+      }
+
+      header {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        max-width: 70ch;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2.1rem, 2vw + 1.4rem, 3.15rem);
+        letter-spacing: -0.02em;
+      }
+
+      header p {
+        margin: 0;
+        line-height: 1.64;
+        color: var(--muted);
+      }
+
+      section {
+        background: var(--card);
+        border-radius: 26px;
+        padding: clamp(26px, 4vw, 40px);
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      section h2 {
+        margin: 0;
+        font-size: 1.26rem;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .toggle {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        appearance: none;
+        border: 1px solid transparent;
+        background: var(--accent-soft);
+        color: var(--accent);
+        padding: 10px 18px;
+        border-radius: 999px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      button:hover {
+        background: var(--accent-strong);
+      }
+
+      button.is-active {
+        background: var(--accent);
+        color: #fff;
+        box-shadow: 0 12px 24px rgba(37, 99, 235, 0.28);
+      }
+
+      .info-strip {
+        font-size: 0.95rem;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .signal-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 18px;
+      }
+
+      .signal-card {
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        padding: 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        background: rgba(255, 255, 255, 0.76);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        min-height: 156px;
+      }
+
+      .signal-card::before {
+        content: attr(data-icon);
+        font-size: 1.2rem;
+        background: rgba(37, 99, 235, 0.1);
+        color: var(--accent);
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+      }
+
+      .signal-card strong {
+        font-size: 1.02rem;
+      }
+
+      .signal-card span {
+        font-size: 0.92rem;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .signal-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+      }
+
+      .frame-viewport {
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .frame-stage {
+        display: flex;
+        gap: 14px;
+        overflow-x: auto;
+        padding-bottom: 6px;
+        scrollbar-width: thin;
+      }
+
+      .frame-stage::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      .frame-stage::-webkit-scrollbar-thumb {
+        background: rgba(15, 23, 42, 0.16);
+        border-radius: 999px;
+      }
+
+      .subframe-card {
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.74);
+        padding: 16px;
+        min-width: max(160px, 12vw);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        text-align: left;
+        position: relative;
+      }
+
+      .subframe-card:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 4px;
+      }
+
+      .subframe-card:hover {
+        transform: translateY(-4px);
+        border-color: var(--accent);
+      }
+
+      .subframe-card.is-selected {
+        border-color: var(--accent);
+        box-shadow: 0 18px 38px rgba(37, 99, 235, 0.26);
+        transform: translateY(-6px);
+      }
+
+      .subframe-id {
+        font-size: 0.78rem;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .subframe-ms {
+        font-size: 0.82rem;
+        color: var(--accent);
+        font-weight: 600;
+        letter-spacing: 0.05em;
+      }
+
+      .subframe-timeline {
+        display: grid;
+        gap: 12px;
+      }
+
+      .lane {
+        display: grid;
+        gap: 6px;
+        border-radius: 14px;
+        padding: 10px;
+        border: 1px solid transparent;
+        background: rgba(37, 99, 235, 0.08);
+      }
+
+      .lane-label {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--accent);
+      }
+
+      .lane-track {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .lane-segment {
+        flex: 1 1 auto;
+        padding: 6px 10px;
+        border-radius: 10px;
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid rgba(37, 99, 235, 0.18);
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--accent);
+        white-space: nowrap;
+      }
+
+      .lane.is-ul {
+        background: rgba(244, 114, 182, 0.12);
+        border-color: rgba(244, 114, 182, 0.24);
+      }
+
+      .lane.is-ul .lane-label {
+        color: #db2777;
+      }
+
+      .lane.is-special {
+        background: rgba(148, 163, 184, 0.16);
+        border-color: rgba(148, 163, 184, 0.32);
+      }
+
+      .lane.is-special .lane-label {
+        color: #475569;
+      }
+
+      .lane.is-ul .lane-segment {
+        border-color: rgba(244, 114, 182, 0.24);
+        background: rgba(244, 114, 182, 0.18);
+        color: #db2777;
+      }
+
+      .lane.is-special .lane-segment {
+        border-color: rgba(148, 163, 184, 0.32);
+        background: rgba(148, 163, 184, 0.24);
+        color: #475569;
+      }
+
+      .role-sync {
+        background: rgba(134, 239, 172, 0.42);
+        border-color: rgba(134, 239, 172, 0.5);
+        color: #047857;
+      }
+
+      .role-broadcast {
+        background: rgba(14, 165, 233, 0.38);
+        border-color: rgba(14, 165, 233, 0.46);
+        color: #075985;
+      }
+
+      .role-control {
+        background: rgba(96, 165, 250, 0.36);
+        border-color: rgba(96, 165, 250, 0.44);
+        color: #1d4ed8;
+      }
+
+      .role-data {
+        background: rgba(129, 140, 248, 0.32);
+        border-color: rgba(129, 140, 248, 0.42);
+        color: #3730a3;
+      }
+
+      .role-pilot {
+        background: rgba(74, 222, 128, 0.32);
+        border-color: rgba(74, 222, 128, 0.42);
+        color: #166534;
+      }
+
+      .role-access {
+        background: rgba(244, 114, 182, 0.34);
+        border-color: rgba(244, 114, 182, 0.44);
+        color: #9d174d;
+      }
+
+      .role-guard {
+        background: rgba(148, 163, 184, 0.3);
+        border-color: rgba(148, 163, 184, 0.42);
+        color: #334155;
+      }
+
+      .frame-controls {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .frame-controls span {
+        font-size: 0.88rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      .frame-controls button {
+        padding: 8px 14px;
+      }
+
+      .frame-detail {
+        border-radius: 20px;
+        border: 1px dashed var(--border);
+        padding: 20px;
+        background: rgba(255, 255, 255, 0.66);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        min-height: 140px;
+      }
+
+      .frame-detail h3 {
+        margin: 0;
+        font-size: 1.02rem;
+        letter-spacing: 0.04em;
+      }
+
+      .frame-detail p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      .detail-lane {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .detail-lane strong {
+        font-size: 0.9rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .detail-lane span {
+        font-size: 0.9rem;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .detail-tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .detail-tag {
+        font-size: 0.72rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(37, 99, 235, 0.2);
+        background: rgba(37, 99, 235, 0.08);
+        color: var(--accent);
+      }
+
+      .rb-container {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr);
+        gap: 26px;
+      }
+
+      .rb-grid {
+        --rows: 7;
+        display: grid;
+        grid-template-columns: repeat(12, minmax(20px, 1fr));
+        grid-template-rows: repeat(var(--rows), minmax(20px, 1fr));
+        gap: 4px;
+        padding: 12px;
+        border-radius: 18px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.72);
+      }
+
+      .rb-cell {
+        border-radius: 6px;
+        background: var(--data);
+        opacity: 0.26;
+      }
+
+      .rb-cell.is-rs {
+        background: var(--rs);
+        opacity: 0.9;
+      }
+
+      .rb-cell.is-pss {
+        background: var(--pss);
+        opacity: 0.92;
+      }
+
+      .rb-legend {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        font-size: 0.92rem;
+        color: var(--muted);
+      }
+
+      .legend-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .legend-swatch {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+      }
+
+      .legend-rs {
+        background: var(--rs);
+      }
+
+      .legend-pss {
+        background: var(--pss);
+      }
+
+      .legend-data {
+        background: var(--data);
+        opacity: 0.3;
+      }
+
+      @media (max-width: 840px) {
+        .rb-container {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Transmission &amp; Reception Layer: Quick Explorer</h1>
+        <p>
+          A tactile view of how LTE juggles physical signals, channels, and duplexing.
+          Tap through the modules to see how synchronization beacons, control traffic, and
+          user payloads share the air, whether spectrum is split (FDD) or traded in time (TDD).
+        </p>
+      </header>
+
+      <section>
+        <h2>Signals vs Channels</h2>
+        <div class="toggle" data-toggle="signals">
+          <button class="is-active" data-view="signals">Physical Signals</button>
+          <button data-view="channels">Physical Channels</button>
+        </div>
+        <p class="info-strip">
+          Physical-layer signals are the beacons the UE listens for first; once synchronized,
+          mapped channels keep control loops and payload streaming.
+        </p>
+        <div class="signal-list" data-target="signals"></div>
+      </section>
+
+      <section>
+        <h2>Frame Flow</h2>
+        <div class="toggle" data-toggle="frame">
+          <button class="is-active" data-mode="fdd">FDD &mdash; Split Spectrum</button>
+          <button data-mode="tdd">TDD &mdash; Split Time</button>
+        </div>
+        <div class="frame-viewport">
+          <div class="frame-stage" data-target="frame-stage" aria-live="polite"></div>
+          <div class="frame-controls" data-role="frame-controls">
+            <button type="button" data-action="prev" aria-label="Previous subframe">&#9664;</button>
+            <button type="button" data-action="play" aria-label="Play subframe tour">Play</button>
+            <button type="button" data-action="next" aria-label="Next subframe">&#9654;</button>
+            <span class="frame-clock" data-target="frame-clock"></span>
+          </div>
+          <div class="frame-detail" data-target="frame-detail">
+            Select a subframe to unpack its duties.
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Resource Block Anatomy</h2>
+        <div class="toggle" data-toggle="rb">
+          <button class="is-active" data-cp="normal">Normal Cyclic Prefix</button>
+          <button data-cp="extended">Extended Cyclic Prefix</button>
+        </div>
+        <div class="rb-container">
+          <div>
+            <div class="rb-grid" data-target="rb"></div>
+          </div>
+          <div class="rb-legend">
+            <div class="legend-row">
+              <div class="legend-swatch legend-rs"></div>
+              <span>Cell-specific reference symbols anchor channel estimation.</span>
+            </div>
+            <div class="legend-row">
+              <div class="legend-swatch legend-pss"></div>
+              <span>PSS/SSS bursts appear in central subcarriers of subframes 0 and 5.</span>
+            </div>
+            <div class="legend-row">
+              <div class="legend-swatch legend-data"></div>
+              <span>PDSCH / PUSCH resource elements ferry user data once control is set.</span>
+            </div>
+            <p class="info-strip rb-count" data-target="rb-count"></p>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script>
+      const signalList = document.querySelector('[data-target="signals"]');
+      const frameStage = document.querySelector('[data-target="frame-stage"]');
+      const frameDetail = document.querySelector('[data-target="frame-detail"]');
+      const frameClock = document.querySelector('[data-target="frame-clock"]');
+      const frameControls = document.querySelector('[data-role="frame-controls"]');
+      const rbGrid = document.querySelector('[data-target="rb"]');
+      const rbCount = document.querySelector('[data-target="rb-count"]');
+
+      const signalsData = {
+        signals: [
+          {
+            icon: "🧭",
+            title: "PSS / SSS",
+            blurb:
+              "Twin sync bursts in subframes 0 and 5 let the UE lock timing and grab the physical cell ID."
+          },
+          {
+            icon: "📡",
+            title: "Reference Signals",
+            blurb:
+              "Dense pilot tones woven into every slot so receivers can gauge fading and fix amplitude/phase drift."
+          },
+          {
+            icon: "🔁",
+            title: "Uplink Demod/Sounding RS",
+            blurb:
+              "UE transmissions aligned to the eNB; sounding probes keep uplink channel estimates fresh."
+          }
+        ],
+        channels: [
+          {
+            icon: "📣",
+            title: "PBCH",
+            blurb:
+              "Central 6 RBs broadcast essential system info & bandwidth so newcomers know how to talk back."
+          },
+          {
+            icon: "🎛️",
+            title: "PDCCH / PUCCH",
+            blurb:
+              "Downlink control tells every UE when and where to listen; uplink control carries ACK/NACK & CQI."
+          },
+          {
+            icon: "🚀",
+            title: "PDSCH / PUSCH",
+            blurb:
+              "Shared data pipes that shoulder user payload once scheduling is granted."
+          }
+        ]
+      };
+
+      const seg = (label, role, hint = "") => ({ label, role, hint });
+
+      const fddDownDetails = [
+        "Sync (PSS/SSS), PBCH in central RBs, and PDCCH kicks off scheduling.",
+        "PDCCH defines grants; leftover REs feed user data on PDSCH.",
+        "CRS pilots weave through symbols 0 & 4 for tracking.",
+        "Bulk user payload on PDSCH with a slim control preamble.",
+        "Additional user/service data; RS keeps channel estimates tight.",
+        "Second sync burst set (PSS/SSS) refreshes every 5 ms.",
+        "Broadcast and control quiet down; shared channel dominates.",
+        "Scheduler parcels RBs amongst UEs based on CQI feedback.",
+        "Could host MBSFN or regular payload depending on config.",
+        "Wrap-up of frame with closing data bursts and potential paging."
+      ];
+
+      const fddUpDetails = [
+        "Random access or control (PRACH / PUCCH) mirrors downlink timing.",
+        "Scheduled PUSCH carries user data aligned to grants from PDCCH.",
+        "DM-RS pilots embedded for coherent demodulation at the eNB.",
+        "Sustained uplink payload transmission with periodic sounding RS.",
+        "Uplink control feedback (HARQ ACK/NACK) plus data if allowed.",
+        "Scheduler may reserve for sounding or closed-loop alignment.",
+        "Continuous PUSCH for active sessions, balanced by guard if needed.",
+        "Control signaling keeps CQI reports flowing up.",
+        "Further user payload or scheduled PRACH opportunities.",
+        "Final uplink subframe before frame boundary and cyclic shift."
+      ];
+
+      const fddDownSegments = [
+        [
+          seg("PSS/SSS", "sync", "Synchronization bursts align new UEs."),
+          seg("PBCH", "broadcast", "Broadcasts system bandwidth and cell configuration."),
+          seg("PDCCH", "control", "Initial scheduling assignments."),
+          seg("PDSCH", "data", "Residual resource elements carry data.")
+        ],
+        [
+          seg("PDCCH", "control", "Grants upcoming downlink resources."),
+          seg("PDSCH", "data", "Payload allocated per the grants.")
+        ],
+        [
+          seg("CRS", "pilot", "Cell-specific pilots on symbols 0 & 4."),
+          seg("PDSCH", "data", "User data rides alongside pilots.")
+        ],
+        [
+          seg("PDCCH", "control", "Control preamble prepping payload."),
+          seg("PDSCH", "data", "User payload saturating the slot.")
+        ],
+        [
+          seg("CRS", "pilot", "Pilots maintain channel tracking."),
+          seg("PDSCH", "data", "Data continues across RBs.")
+        ],
+        [
+          seg("PSS/SSS", "sync", "Second sync pair mid-frame."),
+          seg("PDCCH", "control", "Scheduling refresh."),
+          seg("PDSCH", "data", "Downlink payload keeps streaming.")
+        ],
+        [
+          seg("PDSCH", "data", "Shared downlink data."),
+          seg("CRS", "pilot", "Pilots interleave for demodulation.")
+        ],
+        [
+          seg("PDCCH", "control", "Scheduler parcels RBs."),
+          seg("PDSCH", "data", "Grants feed user throughput.")
+        ],
+        [
+          seg("MBSFN/PDSCH", "data", "Broadcast/multicast or user data block."),
+          seg("CRS", "pilot", "Pilots sustain channel tracking.")
+        ],
+        [
+          seg("PDCCH", "control", "Wrap-up control signaling."),
+          seg("PDSCH", "data", "Final data bursts of the frame."),
+          seg("Paging", "broadcast", "Paging or system info if scheduled.")
+        ]
+      ];
+
+      const fddUpSegments = [
+        [
+          seg("PRACH/PUCCH", "access", "Random access attempts or control replies."),
+          seg("Guard", "guard", "Maintains duplex separation.")
+        ],
+        [
+          seg("PUSCH", "data", "Scheduled user payload."),
+          seg("DM-RS", "pilot", "Demodulation pilots for the eNB.")
+        ],
+        [
+          seg("PUSCH", "data", "User payload continues."),
+          seg("DM-RS", "pilot", "Pilots track channel phase.")
+        ],
+        [
+          seg("PUSCH", "data", "Sustained uplink payload."),
+          seg("Sounding RS", "pilot", "Sounding keeps uplink CSI fresh.")
+        ],
+        [
+          seg("PUCCH", "control", "HARQ ACK/NACK and scheduling requests."),
+          seg("PUSCH", "data", "Piggybacked data grants.")
+        ],
+        [
+          seg("Sounding RS", "pilot", "Scheduler may pull extra sounding."),
+          seg("PUSCH", "data", "User packets continue.")
+        ],
+        [
+          seg("PUSCH", "data", "Active session payload."),
+          seg("Guard", "guard", "Optional protective interval.")
+        ],
+        [
+          seg("PUCCH", "control", "Control signaling (ACK/CQI)."),
+          seg("CQI", "control", "Channel quality indicator reports.")
+        ],
+        [
+          seg("PUSCH", "data", "Additional uplink payload."),
+          seg("PRACH", "access", "Scheduled random access window.")
+        ],
+        [
+          seg("PUSCH", "data", "Final payload block."),
+          seg("ACK/NACK", "control", "Feedback for downlink HARQ.")
+        ]
+      ];
+
+      const fddFrames = fddDownDetails.map((downDetail, idx) => ({
+        id: `SF${idx}`,
+        summary: `Downlink — ${downDetail} Uplink — ${fddUpDetails[idx]}`,
+        lanes: [
+          {
+            type: "dl",
+            title: "Downlink",
+            segments: fddDownSegments[idx],
+            detail: downDetail
+          },
+          {
+            type: "ul",
+            title: "Uplink",
+            segments: fddUpSegments[idx],
+            detail: fddUpDetails[idx]
+          }
+        ]
+      }));
+
+      const tddFrames = [
+        {
+          id: "SF0",
+          summary: "Downlink-only burst frontloads control and payload while UEs just listen.",
+          lanes: [
+            {
+              type: "dl",
+              title: "Shared carrier — downlink",
+              segments: [
+                seg("PDCCH", "control", "Control region occupies the first symbols."),
+                seg("PDSCH", "data", "User payload on the common carrier."),
+                seg("CRS", "pilot", "Pilots stabilize equalization.")
+              ],
+              detail: "UEs decode control (PDCCH) then harvest PDSCH data while CRS pilots keep equalization stable."
+            }
+          ]
+        },
+        {
+          id: "SF1",
+          summary: "Shared carrier continues in downlink, mirroring FDD control/data without a separate band.",
+          lanes: [
+            {
+              type: "dl",
+              title: "Shared carrier — downlink",
+              segments: [
+                seg("PDCCH", "control", "Scheduler updates who gets the next RBs."),
+                seg("PDSCH", "data", "Downlink user payload."),
+                seg("CRS", "pilot", "Pilots maintain channel tracking.")
+              ],
+              detail: "Control grants arrive first, followed by PDSCH payload and embedded CRS pilots."
+            }
+          ]
+        },
+        {
+          id: "SF2",
+          summary: "An extended downlink streak keeps throughput high before direction flips.",
+          lanes: [
+            {
+              type: "dl",
+              title: "Shared carrier — downlink",
+              segments: [
+                seg("PDSCH", "data", "Extended downlink data phase."),
+                seg("CRS", "pilot", "Pilots maintain channel tracking.")
+              ],
+              detail: "UEs stay in receive mode, collecting a long PDSCH burst with accompanying CRS pilots."
+            }
+          ]
+        },
+        {
+          id: "SF3",
+          summary: "Special subframe uses DwPTS, guard, and UpPTS to pivot the link cleanly.",
+          lanes: [
+            {
+              type: "special",
+              title: "Special subframe",
+              segments: [
+                seg("DwPTS", "sync", "Short downlink pilot section."),
+                seg("Guard", "guard", "Silence for retuning."),
+                seg("UpPTS", "pilot", "Brief uplink sounding or PRACH.")
+              ],
+              detail: "DwPTS refreshes pilots, the guard window prevents overlap, and UpPTS offers a quick uplink ping."
+            }
+          ]
+        },
+        {
+          id: "SF4",
+          summary: "First uplink slot after guard; UEs transmit payload and control toward the eNB.",
+          lanes: [
+            {
+              type: "ul",
+              title: "Shared carrier — uplink",
+              segments: [
+                seg("PUSCH", "data", "UE payload heads back to the eNB."),
+                seg("PUCCH", "control", "ACK/NACK plus scheduling requests."),
+                seg("DM-RS", "pilot", "Uplink demodulation reference signals.")
+              ],
+              detail: "UEs transmit PUSCH payload alongside PUCCH control and DM-RS pilots."
+            }
+          ]
+        },
+        {
+          id: "SF5",
+          summary: "Additional uplink capacity with room for sounding or random access.",
+          lanes: [
+            {
+              type: "ul",
+              title: "Shared carrier — uplink",
+              segments: [
+                seg("PUSCH", "data", "Further user payload."),
+                seg("Sounding RS", "pilot", "Sounding keeps uplink CSI fresh."),
+                seg("PRACH", "access", "Random access window if configured.")
+              ],
+              detail: "Sounding and optional PRACH keep the uplink aligned while payload continues."
+            }
+          ]
+        },
+        {
+          id: "SF6",
+          summary: "Carrier swings back to downlink so the scheduler can serve fresh payload.",
+          lanes: [
+            {
+              type: "dl",
+              title: "Shared carrier — downlink",
+              segments: [
+                seg("PDCCH", "control", "Scheduler reacquires the downlink."),
+                seg("PDSCH", "data", "Downlink data resumes."),
+                seg("CRS", "pilot", "Pilots re-anchor the channel.")
+              ],
+              detail: "Scheduler returns to downlink, mixing control, data, and pilots."
+            }
+          ]
+        },
+        {
+          id: "SF7",
+          summary: "A second special frame keeps timing stable before uplink resumes.",
+          lanes: [
+            {
+              type: "special",
+              title: "Special subframe",
+              segments: [
+                seg("DwPTS", "sync", "Downlink pilot time slot."),
+                seg("Guard", "guard", "Switch-over cushion."),
+                seg("UpPTS", "pilot", "Short uplink probe or PRACH.")
+              ],
+              detail: "The combination of DwPTS, guard, and UpPTS steadies timing ahead of the next uplink burst."
+            }
+          ]
+        },
+        {
+          id: "SF8",
+          summary: "Downlink data/control return after the short turnaround.",
+          lanes: [
+            {
+              type: "dl",
+              title: "Shared carrier — downlink",
+              segments: [
+                seg("PDCCH", "control", "Fresh scheduling directives."),
+                seg("PDSCH", "data", "Downlink payload gets another window."),
+                seg("CRS", "pilot", "Pilots keep equalization tuned.")
+              ],
+              detail: "Control plus fresh PDSCH payload ride the carrier, supported by CRS pilots."
+            }
+          ]
+        },
+        {
+          id: "SF9",
+          summary: "Final uplink slot before the 10 ms frame wraps.",
+          lanes: [
+            {
+              type: "ul",
+              title: "Shared carrier — uplink",
+              segments: [
+                seg("PUSCH", "data", "Last payload block before rollover."),
+                seg("PUCCH", "control", "Feedback and scheduling requests."),
+                seg("Sounding RS", "pilot", "Sounding tidies up the uplink estimate.")
+              ],
+              detail: "UEs finish the frame with payload, control feedback, and sounding pilots."
+            }
+          ]
+        }
+      ];
+
+      const frameLayouts = {
+        fdd: fddFrames,
+        tdd: tddFrames
+      };
+
+      let currentMode = "fdd";
+      let currentFrames = frameLayouts[currentMode];
+      let selectedIndex = 0;
+      let playTimer = null;
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const playButton = frameControls.querySelector('[data-action="play"]');
+
+      function renderSignals(viewKey) {
+        signalList.innerHTML = "";
+        signalsData[viewKey].forEach((card) => {
+          const div = document.createElement("div");
+          div.className = "signal-card";
+          div.dataset.icon = card.icon;
+          const title = document.createElement("strong");
+          title.textContent = card.title;
+          const desc = document.createElement("span");
+          desc.textContent = card.blurb;
+          div.appendChild(title);
+          div.appendChild(desc);
+          signalList.appendChild(div);
+        });
+      }
+
+      function stopPlay() {
+        if (playTimer) {
+          clearInterval(playTimer);
+          playTimer = null;
+        }
+        playButton.textContent = "Play";
+      }
+
+      function startPlay() {
+        if (!currentFrames.length || playTimer) {
+          return;
+        }
+        playButton.textContent = "Pause";
+        playTimer = window.setInterval(() => {
+          const next = (selectedIndex + 1) % currentFrames.length;
+          selectSubframe(next);
+        }, 1800);
+      }
+
+      function updateDetail(frame, index) {
+        frameDetail.innerHTML = "";
+        const title = document.createElement("h3");
+        title.textContent = `${frame.id} · ${index}-${index + 1} ms`;
+        frameDetail.appendChild(title);
+
+        const summary = document.createElement("p");
+        summary.textContent = frame.summary;
+        frameDetail.appendChild(summary);
+
+        frame.lanes.forEach((lane) => {
+          const laneBlock = document.createElement("div");
+          laneBlock.className = "detail-lane";
+          const laneTitle = document.createElement("strong");
+          laneTitle.textContent = lane.title;
+          laneBlock.appendChild(laneTitle);
+
+          const detailText = document.createElement("span");
+          detailText.textContent = lane.detail;
+          laneBlock.appendChild(detailText);
+
+          if (lane.segments && lane.segments.length) {
+            const tags = document.createElement("div");
+            tags.className = "detail-tags";
+            lane.segments.forEach((segment) => {
+              const tag = document.createElement("span");
+              tag.className = `detail-tag role-${segment.role}`;
+              tag.textContent = segment.label;
+              if (segment.hint) {
+                tag.title = segment.hint;
+              }
+              tags.appendChild(tag);
+            });
+            laneBlock.appendChild(tags);
+          }
+
+          frameDetail.appendChild(laneBlock);
+        });
+      }
+
+      function selectSubframe(index, options = {}) {
+        if (!currentFrames.length) {
+          return;
+        }
+        const total = currentFrames.length;
+        const safeIndex = ((index % total) + total) % total;
+        selectedIndex = safeIndex;
+
+        const cards = frameStage.querySelectorAll(".subframe-card");
+        cards.forEach((card, idx) => {
+          const isSelected = idx === safeIndex;
+          card.classList.toggle("is-selected", isSelected);
+          card.setAttribute("aria-pressed", isSelected ? "true" : "false");
+          if (isSelected && options.scroll !== false) {
+            const behavior = prefersReducedMotion ? "auto" : "smooth";
+            card.scrollIntoView({ inline: "center", block: "nearest", behavior });
+          }
+        });
+
+        const frame = currentFrames[safeIndex];
+        frameClock.textContent = `${currentMode.toUpperCase()} · ${frame.id} · ${safeIndex}-${safeIndex + 1} ms`;
+        updateDetail(frame, safeIndex);
+      }
+
+      function renderFrame(mode) {
+        stopPlay();
+        currentMode = mode;
+        currentFrames = frameLayouts[mode] || [];
+        selectedIndex = 0;
+        frameStage.innerHTML = "";
+        frameStage.setAttribute("data-mode", mode);
+
+        if (!currentFrames.length) {
+          frameClock.textContent = "";
+          frameDetail.innerHTML = "<p>No frame layout available.</p>";
+          return;
+        }
+
+        currentFrames.forEach((frame, idx) => {
+          const card = document.createElement("div");
+          card.className = "subframe-card";
+          card.setAttribute("role", "button");
+          card.setAttribute("tabindex", "0");
+          card.setAttribute("aria-pressed", "false");
+          card.dataset.index = idx;
+
+          const id = document.createElement("div");
+          id.className = "subframe-id";
+          id.textContent = frame.id;
+
+          const ms = document.createElement("div");
+          ms.className = "subframe-ms";
+          ms.textContent = `${idx}-${idx + 1} ms`;
+
+          const timeline = document.createElement("div");
+          timeline.className = "subframe-timeline";
+
+          frame.lanes.forEach((lane) => {
+            const laneBlock = document.createElement("div");
+            laneBlock.className = "lane";
+            if (lane.type === "ul") {
+              laneBlock.classList.add("is-ul");
+            } else if (lane.type === "special") {
+              laneBlock.classList.add("is-special");
+            }
+
+            const label = document.createElement("div");
+            label.className = "lane-label";
+            label.textContent = lane.title;
+            laneBlock.appendChild(label);
+
+            const track = document.createElement("div");
+            track.className = "lane-track";
+            lane.segments.forEach((segment) => {
+              const segEl = document.createElement("span");
+              segEl.className = `lane-segment role-${segment.role}`;
+              segEl.textContent = segment.label;
+              if (segment.hint) {
+                segEl.title = segment.hint;
+              }
+              track.appendChild(segEl);
+            });
+            laneBlock.appendChild(track);
+            timeline.appendChild(laneBlock);
+          });
+
+          card.appendChild(id);
+          card.appendChild(ms);
+          card.appendChild(timeline);
+
+          card.addEventListener("click", () => {
+            stopPlay();
+            selectSubframe(idx, { scroll: false });
+          });
+
+          card.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              stopPlay();
+              selectSubframe(idx, { scroll: false });
+            }
+          });
+
+          frameStage.appendChild(card);
+        });
+
+        playButton.textContent = "Play";
+        selectSubframe(0, { scroll: false });
+      }
+
+      function renderRb(cpType) {
+        const rows = cpType === "normal" ? 7 : 6;
+        const rsRows = cpType === "normal" ? [0, 4] : [0, 3];
+        const pssRow = cpType === "normal" ? 6 : 5;
+
+        rbGrid.innerHTML = "";
+        rbGrid.style.setProperty("--rows", rows);
+
+        for (let r = 0; r < rows; r += 1) {
+          for (let c = 0; c < 12; c += 1) {
+            const cell = document.createElement("div");
+            cell.className = "rb-cell";
+            if (rsRows.includes(r)) {
+              cell.classList.add("is-rs");
+            } else if (r === pssRow && c >= 3 && c <= 8) {
+              cell.classList.add("is-pss");
+            }
+            rbGrid.appendChild(cell);
+          }
+        }
+
+        rbCount.textContent =
+          cpType === "normal"
+            ? "Normal CP → 12 subcarriers × 7 symbols = 84 resource elements."
+            : "Extended CP → 12 subcarriers × 6 symbols = 72 resource elements.";
+      }
+
+      function activateButtons(wrapperSelector, attribute, callback) {
+        const wrapper = document.querySelector(wrapperSelector);
+        if (!wrapper) {
+          return;
+        }
+        wrapper.querySelectorAll("button").forEach((btn) => {
+          btn.addEventListener("click", () => {
+            wrapper.querySelectorAll("button").forEach((b) => b.classList.remove("is-active"));
+            btn.classList.add("is-active");
+            callback(btn.dataset[attribute]);
+          });
+        });
+      }
+
+      renderSignals("signals");
+      renderFrame("fdd");
+      renderRb("normal");
+
+      activateButtons('[data-toggle="signals"]', "view", renderSignals);
+      activateButtons('[data-toggle="frame"]', "mode", (mode) => {
+        renderFrame(mode);
+      });
+      activateButtons('[data-toggle="rb"]', "cp", renderRb);
+
+      frameControls.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!target.matches("button[data-action]")) {
+          return;
+        }
+        const { action } = target.dataset;
+        if (action === "prev") {
+          stopPlay();
+          selectSubframe(selectedIndex - 1);
+        } else if (action === "next") {
+          stopPlay();
+          selectSubframe(selectedIndex + 1);
+        } else if (action === "play") {
+          if (playTimer) {
+            stopPlay();
+          } else {
+            startPlay();
+          }
+        }
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          stopPlay();
+        }
+      });
+    </script>
+  </body>
+</html>

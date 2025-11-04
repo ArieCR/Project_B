@@ -1,0 +1,691 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>LTE Channel Bandwidth vs Resource Blocks</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --page-bg: radial-gradient(circle at 20% 20%, rgba(147, 197, 253, 0.32), rgba(15, 23, 42, 0.04));
+        --page-text: #0f172a;
+        --card-bg: rgba(255, 255, 255, 0.88);
+        --card-shadow: 0 42px 120px rgba(15, 23, 42, 0.24);
+        --accent: #2563eb;
+        --accent-soft: rgba(37, 99, 235, 0.16);
+        --accent-strong: rgba(37, 99, 235, 0.28);
+        --accent-glow: rgba(37, 99, 235, 0.45);
+        --muted: rgba(30, 41, 59, 0.68);
+        --muted-strong: rgba(30, 41, 59, 0.86);
+        --border: rgba(148, 163, 184, 0.2);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --page-bg: radial-gradient(circle at 15% 18%, rgba(59, 130, 246, 0.24), rgba(15, 23, 42, 0.86));
+          --page-text: rgba(226, 232, 255, 0.92);
+          --card-bg: rgba(13, 22, 42, 0.78);
+          --card-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+          --accent: #60a5fa;
+          --accent-soft: rgba(96, 165, 250, 0.18);
+          --accent-strong: rgba(96, 165, 250, 0.32);
+          --accent-glow: rgba(96, 165, 250, 0.55);
+          --muted: rgba(203, 213, 225, 0.78);
+          --muted-strong: rgba(226, 232, 240, 0.92);
+          --border: rgba(148, 163, 184, 0.24);
+        }
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+        background: var(--page-bg);
+        color: var(--page-text);
+        display: flex;
+        justify-content: center;
+      }
+
+      .page {
+        width: min(1080px, 100%);
+        padding: clamp(42px, 4.4vw, 72px) clamp(18px, 5vw, 46px);
+        display: flex;
+        flex-direction: column;
+        gap: clamp(34px, 4vw, 46px);
+      }
+
+      header {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: clamp(2rem, 2vw + 1.4rem, 3.1rem);
+        letter-spacing: -0.02em;
+      }
+
+      header p {
+        margin: 0;
+        max-width: 70ch;
+        font-size: 1.05rem;
+        line-height: 1.68;
+        color: var(--muted);
+      }
+
+      .viz-card {
+        display: grid;
+        grid-template-columns: minmax(280px, 340px) minmax(320px, 1fr);
+        gap: clamp(28px, 4.5vw, 46px);
+        background: var(--card-bg);
+        border-radius: 26px;
+        padding: clamp(30px, 4vw, 42px);
+        box-shadow: var(--card-shadow);
+      }
+
+      @media (max-width: 900px) {
+        .viz-card {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .explainer {
+        display: flex;
+        flex-direction: column;
+        gap: 26px;
+      }
+
+      .explainer h2 {
+        margin: 0;
+        font-size: 1.32rem;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .explainer p {
+        margin: 0;
+        font-size: 0.98rem;
+        line-height: 1.7;
+        color: var(--muted-strong);
+      }
+
+      .fact-strip {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 18px 20px;
+        background: var(--accent-soft);
+        border-radius: 16px;
+        border: 1px solid var(--border);
+        position: relative;
+        overflow: hidden;
+      }
+
+      .fact-strip::after {
+        content: "";
+        position: absolute;
+        inset: -40% -40% auto auto;
+        width: 180px;
+        height: 180px;
+        background: radial-gradient(circle, var(--accent-glow), transparent 65%);
+        opacity: 0.45;
+        pointer-events: none;
+      }
+
+      .fact-strip strong {
+        font-size: 0.9rem;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      .fact-strip span {
+        font-size: 0.96rem;
+        color: var(--muted-strong);
+      }
+
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .chips button {
+        border: 1px solid transparent;
+        background: var(--accent-soft);
+        color: inherit;
+        border-radius: 999px;
+        padding: 8px 18px;
+        font-size: 0.92rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border 0.18s ease;
+      }
+
+      .chips button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 16px 34px rgba(37, 99, 235, 0.18);
+      }
+
+      .chips button.active {
+        background: var(--accent);
+        color: white;
+        border-color: rgba(255, 255, 255, 0.42);
+        box-shadow: 0 20px 42px rgba(37, 99, 235, 0.32);
+      }
+
+      .slider-group {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+
+      .slider-meta {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+        color: var(--muted-strong);
+      }
+
+      input[type="range"] {
+        width: 100%;
+        appearance: none;
+        height: 8px;
+        border-radius: 999px;
+        background: linear-gradient(90deg, var(--accent), rgba(15, 23, 42, 0.08));
+        outline: none;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        appearance: none;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid var(--accent);
+        box-shadow: 0 10px 26px rgba(37, 99, 235, 0.35);
+        cursor: pointer;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: white;
+        border: 3px solid var(--accent);
+        box-shadow: 0 10px 26px rgba(37, 99, 235, 0.35);
+        cursor: pointer;
+      }
+
+      .controller-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .controller-row button {
+        border: none;
+        background: var(--accent);
+        color: white;
+        border-radius: 999px;
+        padding: 8px 18px;
+        font-size: 0.9rem;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.28);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+      }
+
+      .controller-row button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 24px 60px rgba(37, 99, 235, 0.32);
+      }
+
+      .controller-row span {
+        font-size: 0.9rem;
+        color: var(--muted);
+      }
+
+      .visual {
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .bandwidth-axis {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .axis-track {
+        position: relative;
+        width: 100%;
+        height: 14px;
+        border-radius: 999px;
+        background: rgba(148, 163, 184, 0.18);
+        overflow: hidden;
+      }
+
+      .axis-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        width: 0%;
+        background: linear-gradient(90deg, var(--accent), rgba(37, 99, 235, 0.05));
+        transition: width 0.45s cubic-bezier(0.25, 0.1, 0.25, 1);
+      }
+
+      .axis-marker {
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--accent);
+        color: white;
+        padding: 6px 10px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        box-shadow: 0 18px 40px rgba(37, 99, 235, 0.32);
+        transition: left 0.45s cubic-bezier(0.25, 0.1, 0.25, 1);
+        white-space: nowrap;
+      }
+
+      .axis-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.84rem;
+        color: var(--muted);
+      }
+
+      .grid-card {
+        background: rgba(255, 255, 255, 0.72);
+        border-radius: 22px;
+        padding: 24px 26px 30px;
+        border: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .grid-card {
+          background: rgba(15, 23, 42, 0.6);
+        }
+      }
+
+      .grid-card h3 {
+        margin: 0;
+        font-size: 1.02rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+
+      svg {
+        width: 100%;
+        height: auto;
+        aspect-ratio: 20 / 9;
+      }
+
+      .rb {
+        fill: rgba(148, 163, 184, 0.22);
+        stroke: rgba(148, 163, 184, 0.45);
+        stroke-width: 1.4;
+        transition: fill 0.28s ease, stroke 0.28s ease, transform 0.28s ease;
+      }
+
+      .rb.active {
+        fill: rgba(37, 99, 235, 0.62);
+        stroke: rgba(37, 99, 235, 0.9);
+      }
+
+      .rb.highlight {
+        transform: scale(1.04);
+        transform-origin: center;
+        filter: drop-shadow(0 12px 18px rgba(37, 99, 235, 0.35));
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 16px;
+        font-size: 0.92rem;
+        color: var(--muted-strong);
+      }
+
+      .metrics span {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .metrics strong {
+        font-size: 1.3rem;
+        color: var(--accent);
+        letter-spacing: -0.01em;
+      }
+
+      .tooltip {
+        position: fixed;
+        pointer-events: none;
+        background: rgba(15, 23, 42, 0.92);
+        color: #f8fafc;
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        white-space: nowrap;
+        z-index: 30;
+        opacity: 0;
+        transform: translateY(6px);
+        transition: opacity 0.12s ease, transform 0.12s ease;
+      }
+
+      .tooltip.visible {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>How LTE Scales Bandwidth Without Touching Subcarrier Spacing</h1>
+        <p>
+          LTE locks the subcarrier spacing at <strong>15&nbsp;kHz</strong>. Instead of squeezing carriers closer together, the
+          network adds more Resource Blocks (RBs) as channel bandwidth grows. The interactive grid shows how many RBs fit inside
+          each standardized channel size.
+        </p>
+      </header>
+
+      <section class="viz-card">
+        <div class="explainer">
+          <h2>2.2&nbsp;LTE Standards</h2>
+          <p>
+            Every LTE Resource Block spans <strong>12 subcarriers × 15&nbsp;kHz</strong>, and it is the smallest unit the scheduler can hand out in the uplink or downlink.
+            A wider channel simply means more RBs on the dial—from just six in a narrow 1.4&nbsp;MHz carrier up to one hundred in the full 20&nbsp;MHz allocation.
+          </p>
+
+          <div class="fact-strip">
+            <strong>Subcarrier spacing</strong>
+            <span>Fixed at 15&nbsp;kHz no matter how wide the channel becomes. RB width ≈ 180&nbsp;kHz.</span>
+          </div>
+
+          <div class="chips" id="chip-row"></div>
+
+          <div class="slider-group">
+            <div class="slider-meta">
+              <span id="slider-label">Channel: 1.4&nbsp;MHz</span>
+              <span id="slider-rbs">Active RBs: 6</span>
+            </div>
+            <input id="bandwidth-slider" type="range" min="0" value="0" />
+          </div>
+
+          <div class="controller-row">
+            <button id="autoplay">Play timeline</button>
+            <span id="scenario-note"></span>
+          </div>
+        </div>
+
+        <div class="visual">
+          <div class="bandwidth-axis">
+            <div class="axis-track">
+              <div class="axis-fill" id="axis-fill"></div>
+              <div class="axis-marker" id="axis-marker">1.4&nbsp;MHz</div>
+            </div>
+            <div class="axis-labels">
+              <span>0&nbsp;MHz</span>
+              <span>20&nbsp;MHz ⇢ 100&nbsp;RBs</span>
+            </div>
+          </div>
+
+          <div class="grid-card">
+            <h3>Resource Blocks active in this channel</h3>
+            <svg id="rb-grid" viewBox="0 0 800 360" role="img" aria-label="Resource Block allocation"></svg>
+            <div class="metrics">
+              <span>
+                <label>Channel bandwidth</label>
+                <strong id="metric-bandwidth">1.4&nbsp;MHz</strong>
+              </span>
+              <span>
+                <label>RBs available</label>
+                <strong id="metric-rbs">6</strong>
+              </span>
+              <span>
+                <label>Subcarriers total</label>
+                <strong id="metric-subcarriers">72</strong>
+              </span>
+              <span>
+                <label>Total subcarrier span</label>
+                <strong id="metric-span">1.08&nbsp;MHz ≈ user data</strong>
+              </span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+      const SCENARIOS = [
+        {
+          label: "1.4 MHz channel",
+          mhz: 1.4,
+          rbs: 6,
+          note: "Used for guard-band friendly deployments and M2M/IoT.",
+        },
+        {
+          label: "3 MHz channel",
+          mhz: 3,
+          rbs: 15,
+          note: "Common mid-band option in early LTE rollouts.",
+        },
+        {
+          label: "5 MHz channel",
+          mhz: 5,
+          rbs: 25,
+          note: "Baseline size for nationwide FDD spectrum.",
+        },
+        {
+          label: "10 MHz channel",
+          mhz: 10,
+          rbs: 50,
+          note: "Doubles capacity; popular for paired mid-band holdings.",
+        },
+        {
+          label: "15 MHz channel",
+          mhz: 15,
+          rbs: 75,
+          note: "High-capacity block for metropolitan coverage.",
+        },
+        {
+          label: "20 MHz channel",
+          mhz: 20,
+          rbs: 100,
+          note: "Maximum LTE FDD channel; backbone for gigabit-class LTE.",
+        },
+      ];
+
+      const slider = document.getElementById("bandwidth-slider");
+      const sliderLabel = document.getElementById("slider-label");
+      const sliderRbs = document.getElementById("slider-rbs");
+      const chipRow = document.getElementById("chip-row");
+      const axisFill = document.getElementById("axis-fill");
+      const axisMarker = document.getElementById("axis-marker");
+      const metricBandwidth = document.getElementById("metric-bandwidth");
+      const metricRbs = document.getElementById("metric-rbs");
+      const metricSubcarriers = document.getElementById("metric-subcarriers");
+      const metricSpan = document.getElementById("metric-span");
+      const scenarioNote = document.getElementById("scenario-note");
+      const tooltip = document.getElementById("tooltip");
+      const grid = document.getElementById("rb-grid");
+      const autoplayBtn = document.getElementById("autoplay");
+
+      slider.max = SCENARIOS.length - 1;
+
+      const COLS = 20;
+      const ROWS = 5;
+      const TOTAL_RB = COLS * ROWS;
+      const CELL_W = 34;
+      const CELL_H = 54;
+      const OFFSET_X = 26;
+      const OFFSET_Y = 28;
+
+      const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+      const chips = SCENARIOS.map((scenario, index) => {
+        const btn = document.createElement("button");
+        btn.textContent = `${scenario.mhz} MHz`;
+        btn.type = "button";
+        btn.addEventListener("click", () => {
+          stopAutoplay();
+          setScenario(index);
+        });
+        chipRow.appendChild(btn);
+        return btn;
+      });
+
+      const rbNodes = [];
+      for (let row = 0; row < ROWS; row++) {
+        for (let col = 0; col < COLS; col++) {
+          const idx = row * COLS + col;
+          const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          rect.setAttribute("x", OFFSET_X + col * CELL_W);
+          rect.setAttribute("y", OFFSET_Y + row * CELL_H);
+          rect.setAttribute("width", CELL_W - 6);
+          rect.setAttribute("height", CELL_H - 10);
+          rect.setAttribute("rx", 8);
+          rect.setAttribute("ry", 8);
+          rect.classList.add("rb");
+          rect.dataset.index = idx;
+
+          rect.addEventListener("pointerenter", handlePointerEnter);
+          rect.addEventListener("pointermove", handlePointerMove);
+          rect.addEventListener("pointerleave", handlePointerLeave);
+
+          grid.appendChild(rect);
+          rbNodes.push(rect);
+        }
+      }
+
+      function handlePointerEnter(evt) {
+        const node = evt.currentTarget;
+        node.classList.add("highlight");
+        const idx = Number(node.dataset.index);
+        tooltip.textContent = tooltipText(idx);
+        tooltip.classList.add("visible");
+        positionTooltip(evt);
+      }
+
+      function handlePointerMove(evt) {
+        positionTooltip(evt);
+      }
+
+      function handlePointerLeave(evt) {
+        evt.currentTarget.classList.remove("highlight");
+        tooltip.classList.remove("visible");
+      }
+
+      function positionTooltip(evt) {
+        const padding = 12;
+        const { clientX, clientY } = evt;
+        tooltip.style.left = `${clientX + padding}px`;
+        tooltip.style.top = `${clientY + padding}px`;
+      }
+
+      function tooltipText(idx) {
+        const blockWidthMHz = 20 / TOTAL_RB;
+        const start = idx * blockWidthMHz;
+        const end = start + blockWidthMHz;
+        const startStr = start.toFixed(2);
+        const endStr = end.toFixed(2);
+        return `RB ${idx + 1}\n≈ ${startStr}–${endStr} MHz slice\n12 × 15 kHz subcarriers`;
+      }
+
+      let autoplayTimer = null;
+      let autoplayDirection = 1;
+
+      autoplayBtn.addEventListener("click", () => {
+        if (autoplayTimer) {
+          stopAutoplay();
+        } else {
+          startAutoplay();
+        }
+      });
+
+      slider.addEventListener("input", () => {
+        stopAutoplay();
+        setScenario(Number(slider.value));
+      });
+
+      function setScenario(index) {
+        const scenario = SCENARIOS[index];
+        slider.value = index;
+
+        sliderLabel.innerHTML = `Channel: ${scenario.mhz}&nbsp;MHz`;
+        sliderRbs.textContent = `Active RBs: ${scenario.rbs}`;
+        axisFill.style.width = `${(scenario.mhz / 20) * 100}%`;
+        axisMarker.innerHTML = `${scenario.mhz}&nbsp;MHz`;
+        axisMarker.style.left = `${(scenario.mhz / 20) * 100}%`;
+
+        metricBandwidth.innerHTML = `${scenario.mhz}&nbsp;MHz`;
+        metricRbs.textContent = scenario.rbs;
+        metricSubcarriers.textContent = scenario.rbs * 12;
+
+        const usableSpan = (scenario.rbs * 12 * 15) / 1000; // kHz → MHz
+        metricSpan.innerHTML = `${usableSpan.toFixed(2)}&nbsp;MHz ≈ user data`;
+        scenarioNote.textContent = scenario.note;
+
+        rbNodes.forEach((node, idx) => {
+          if (idx < scenario.rbs) {
+            node.classList.add("active");
+          } else {
+            node.classList.remove("active");
+          }
+        });
+
+        chips.forEach((chip, chipIndex) => {
+          chip.classList.toggle("active", chipIndex === index);
+        });
+      }
+
+      function startAutoplay() {
+        if (prefersReduced) {
+          return;
+        }
+        autoplayBtn.textContent = "Pause timeline";
+        autoplayTimer = setInterval(() => {
+          let next = Number(slider.value) + autoplayDirection;
+          if (next >= SCENARIOS.length) {
+            autoplayDirection = -1;
+            next = SCENARIOS.length - 2;
+          } else if (next < 0) {
+            autoplayDirection = 1;
+            next = 1;
+          }
+          setScenario(next);
+        }, 2400);
+      }
+
+      function stopAutoplay() {
+        if (!autoplayTimer) {
+          return;
+        }
+        clearInterval(autoplayTimer);
+        autoplayTimer = null;
+        autoplayBtn.textContent = "Play timeline";
+      }
+
+      setScenario(0);
+    </script>
+  </body>
+</html>

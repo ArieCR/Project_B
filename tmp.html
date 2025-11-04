@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Uplink Resource Grid Visualization</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+        body { 
+            margin: 0; 
+            font-family: sans-serif;
+            overflow: hidden; /* Hide scrollbars */
+        }
+        canvas { 
+            display: block; 
+        }
+        /* Style for the legend */
+        #legend {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.85);
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            margin-right: 8px;
+            border: 1px solid #555;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="legend">
+        <h4>Uplink Channels (Mock-up)</h4>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #00aadd;"></div>
+            <span>PUSCH (16QAM)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #0055aa;"></div>
+            <span>PUCCH</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #888888;"></div>
+            <span>Demodulation RS (PUSCH)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: #bbbbbb;"></div>
+            <span>Demodulation RS (PUCCH)</span>
+        </div>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.skypack.dev/three@0.158.0/build/three.module.js",
+            "three/addons/": "https://cdn.skypack.dev/three@0.158.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        let scene, camera, renderer, controls;
+
+        // --- Colors based on the diagram's legend ---
+        const COLORS = {
+            PUSCH_16QAM: 0x00aadd, // Light blue
+            PUSCH_QPSK: 0x66ccff,  // A lighter blue (not used in this demo)
+            PUCCH: 0x0055aa,       // Darker blue
+            RS_PUSCH: 0x888888,    // Dark grey
+            RS_PUCCH: 0xbbbbbb,    // Light grey
+            SOUNDING_RS: 0xeeeeee  // White/v-light grey (not used in this demo)
+        };
+
+        // --- Grid settings ---
+        const GRID_SIZE = 20;       // Total size (e.g., 20x20)
+        const GRID_DIVISIONS = 20;  // Number of cells
+
+        init();
+        animate();
+
+        function init() {
+            // 1. Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0xffffff);
+
+            // 2. Camera
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(18, 20, 18); // Set initial camera position
+
+            // 3. Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 4. Controls (for orbit, pan, zoom)
+            controls = new OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true; // Smooths out the camera movement
+            controls.dampingFactor = 0.05;
+            controls.target.set(0, 2, 0); // Make controls orbit around center of blocks
+
+            // 5. Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 3); // Soft white light
+            scene.add(ambientLight);
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 2); // Bright light from above
+            directionalLight.position.set(5, 10, 7.5);
+            scene.add(directionalLight);
+
+            // 6. Floor Grid
+            const gridHelper = new THREE.GridHelper(GRID_SIZE, GRID_DIVISIONS, 0xaaaaaa, 0xdddddd);
+            scene.add(gridHelper);
+            
+            // 7. Add Axes Labels (as simple planes with text)
+            // This is a simplified way to add labels.
+            // Note: "Frequency" and "Time" are swapped relative to the grid helper's default
+            createAxisLabel("Time", new THREE.Vector3(GRID_SIZE / 2 + 1, 0, 0), 'z');
+            createAxisLabel("Frequency", new THREE.Vector3(0, 0, GRID_SIZE / 2 + 1), 'x');
+
+
+            // 8. Add the 3D Blocks (Mock Data)
+            // This function places a block on the grid
+            // Grid (x, z) coords are from 0 to GRID_DIVISIONS-1
+            function createResourceBlock(gridX, gridZ, height, color) {
+                const geometry = new THREE.BoxGeometry(0.9, height, 0.9); // 0.9 to leave gaps
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: color,
+                    roughness: 0.7,
+                    metalness: 0.1
+                });
+                const cube = new THREE.Mesh(geometry, material);
+                
+                // Calculate position from grid coordinates
+                const xPos = gridX - GRID_SIZE / 2 + 0.5;
+                const yPos = height / 2; // Position at base
+                const zPos = gridZ - GRID_SIZE / 2 + 0.5;
+                
+                cube.position.set(xPos, yPos, zPos);
+                scene.add(cube);
+            }
+
+            // --- Create the large PUSCH cluster ---
+            for (let x = 5; x < 15; x++) {
+                for (let z = 5; z < 12; z++) {
+                    // Create varying heights like in the image
+                    const height = Math.random() * 2.5 + 1.5; 
+                    createResourceBlock(x, z, height, COLORS.PUSCH_16QAM);
+                }
+            }
+
+            // --- Create the taller PUCCH blocks (at the "front") ---
+            createResourceBlock(16, 15, 5, COLORS.PUCCH);
+            createResourceBlock(17, 16, 4.5, COLORS.PUCCH);
+
+            // --- Create Demodulation RS blocks (grey, at the "back-left") ---
+            createResourceBlock(3, 4, 3, COLORS.RS_PUSCH);
+            createResourceBlock(4, 4, 3, COLORS.RS_PUSCH);
+            createResourceBlock(5, 4, 3, COLORS.RS_PUSCH);
+            
+            // --- Create Demodulation RS blocks (light grey, "front-left") ---
+            createResourceBlock(4, 15, 2.5, COLORS.RS_PUCCH);
+            createResourceBlock(4, 16, 2.5, COLORS.RS_PUCCH);
+
+            // Handle window resizing
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        // Helper function to create text labels for axes
+        function createAxisLabel(text, position, axis) {
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            context.font = 'Bold 40px Arial';
+            context.fillStyle = '#000000';
+            context.fillText(text, 0, 50);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            texture.needsUpdate = true;
+
+            const material = new THREE.MeshBasicMaterial({
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            
+            const mesh = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), material);
+            mesh.position.copy(position);
+            
+            // Rotate label to face correctly
+            if(axis === 'x') {
+                mesh.rotation.y = Math.PI / 2;
+            }
+            
+            scene.add(mesh);
+        }
+
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // Only required if controls.enableDamping = true
+            renderer.render(scene, camera);
+        }
+    </script>
+
+</body>
+</html>

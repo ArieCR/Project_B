@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Modulation Constellations: PSK → QAM → APSK</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(180deg, rgba(12, 22, 38, 0.28), rgba(12, 22, 38, 0.08));
+        color: #0f172a;
+        min-height: 100vh;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: radial-gradient(circle at 20% 20%, rgba(59, 76, 105, 0.35), rgba(4, 7, 12, 0.92));
+          color: #e8edf7;
+        }
+      }
+
+      .page {
+        max-width: 1024px;
+        margin: 0 auto;
+        padding: 56px 26px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 30px;
+      }
+
+      header h1 {
+        margin: 0;
+        font-size: clamp(2.1rem, 2.6vw + 1.4rem, 3.3rem);
+        letter-spacing: -0.02em;
+      }
+
+      header p {
+        margin: 12px 0 0;
+        max-width: 70ch;
+        font-size: 1.05rem;
+        line-height: 1.65;
+        color: rgba(15, 23, 42, 0.75);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        header p {
+          color: rgba(226, 232, 255, 0.74);
+        }
+      }
+
+      .content-card {
+        border-radius: 22px;
+        padding: 30px 32px 36px;
+        background: rgba(255, 255, 255, 0.86);
+        box-shadow: 0 32px 70px rgba(15, 23, 42, 0.2);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .content-card {
+          background: rgba(9, 14, 25, 0.84);
+          box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
+        }
+      }
+
+      .scene {
+        display: grid;
+        grid-template-columns: minmax(280px, 1fr) minmax(260px, 320px);
+        gap: clamp(24px, 4vw, 40px);
+        align-items: center;
+      }
+
+      @media (max-width: 900px) {
+        .scene {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .svg-wrap {
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        border-radius: 20px;
+        background: radial-gradient(circle at 50% 50%, rgba(37, 99, 235, 0.08), rgba(12, 18, 32, 0));
+        position: relative;
+        overflow: visible;
+      }
+
+      svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 22px;
+      }
+
+      .scheme-toggle {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .scheme-toggle button {
+        background: rgba(37, 99, 235, 0.12);
+        border: none;
+        border-radius: 999px;
+        padding: 10px 20px;
+        font-size: 0.94rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
+        color: inherit;
+        cursor: pointer;
+        transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+      }
+
+      .scheme-toggle button:hover {
+        background: rgba(37, 99, 235, 0.18);
+      }
+
+      .scheme-toggle button.active {
+        background: #2563eb;
+        color: #fff;
+        box-shadow: 0 16px 30px rgba(37, 99, 235, 0.35);
+        transform: translateY(-1px);
+      }
+
+      .description {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .description h2 {
+        margin: 0;
+        font-size: 1.1rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: rgba(37, 99, 235, 0.85);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .description h2 {
+          color: rgba(96, 165, 250, 0.82);
+        }
+      }
+
+      .description p {
+        margin: 0;
+        line-height: 1.6;
+        font-size: 0.98rem;
+        color: rgba(15, 23, 42, 0.78);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .description p {
+          color: rgba(226, 232, 255, 0.78);
+        }
+      }
+
+      .legend {
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        font-size: 0.88rem;
+        color: rgba(71, 85, 105, 0.85);
+      }
+
+      .legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .legend i {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: currentColor;
+      }
+
+      .tooltip {
+        position: fixed;
+        pointer-events: none;
+        background: rgba(15, 23, 42, 0.92);
+        color: #f8fafc;
+        padding: 8px 12px;
+        border-radius: 10px;
+        font-size: 0.78rem;
+        line-height: 1.35;
+        white-space: nowrap;
+        z-index: 20;
+        opacity: 0;
+        transform: translate(-50%, -120%);
+        transition: opacity 0.12s ease;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .tooltip {
+          background: rgba(15, 23, 42, 0.95);
+        }
+      }
+
+      .tooltip.visible {
+        opacity: 1;
+      }
+
+      .axes-label {
+        font-size: 0.11px;
+        fill: rgba(15, 23, 42, 0.72);
+        letter-spacing: 0;
+        font-weight: 500;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .axes-label {
+          fill: rgba(226, 232, 255, 0.75);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>How Digital Constellations Adapt to the Channel</h1>
+        <p>
+          Drag the points through phase-only, amplitude-and-phase, and ring-based layouts. Each
+          constellation uses the same 16 symbols, but the geometry shifts to balance noise
+          tolerance, non-linear hardware, and spectral efficiency.
+        </p>
+      </header>
+
+      <section class="content-card">
+        <div class="scene">
+          <div class="svg-wrap">
+            <svg viewBox="-1.35 -1.35 2.7 2.7" id="constellation">
+              <defs>
+                <radialGradient id="pointGlow" cx="50%" cy="50%" r="50%">
+                  <stop offset="0%" stop-color="rgba(59,130,246,0.8)" />
+                  <stop offset="100%" stop-color="rgba(59,130,246,0)" />
+                </radialGradient>
+              </defs>
+
+              <circle cx="0" cy="0" r="1.15" fill="none" stroke="rgba(148,163,184,0.25)" stroke-width="0.01" stroke-dasharray="0.05 0.04" />
+              <line x1="-1.3" y1="0" x2="1.3" y2="0" stroke="rgba(148,163,184,0.45)" stroke-width="0.012" />
+              <line x1="0" y1="-1.3" x2="0" y2="1.3" stroke="rgba(148,163,184,0.45)" stroke-width="0.012" />
+              <text x="1.3" y="0.1" class="axes-label" text-anchor="end">In-phase (I)</text>
+              <text x="-0.1" y="1.3" class="axes-label" transform="rotate(-90 -0.1 1.3)" text-anchor="end">
+                Quadrature (Q)
+              </text>
+
+              <g id="points"></g>
+            </svg>
+          </div>
+
+          <div class="controls">
+            <div class="scheme-toggle" id="scheme-toggle"></div>
+
+            <div class="description">
+              <h2 id="scheme-title">16-PSK · Constant envelope</h2>
+              <p id="scheme-description">
+                All 16 symbols sit on one circle. Only the phase changes, which keeps the power
+                amplifier happy but leaves neighbouring points tightly packed in angle.
+              </p>
+            </div>
+
+            <div class="legend">
+              <span><i style="background: #8b5cf6"></i> Current symbol location</span>
+              <span><i style="background: rgba(148,163,184,0.65)"></i> Axes guide</span>
+              <span>Hover a point to see amplitude &amp; phase</span>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <script>
+      const schemes = [
+        {
+          id: "psk",
+          name: "16-PSK · Constant envelope",
+          summary:
+            "All symbols share the same amplitude. Phase alone encodes the data, which preserves amplifier linearity but makes symbols more sensitive to phase noise.",
+          positions: Array.from({ length: 16 }, (_, k) => {
+            const angle = (2 * Math.PI * k) / 16;
+            return { x: Math.cos(angle), y: Math.sin(angle) };
+          }),
+        },
+        {
+          id: "qam",
+          name: "16-QAM · Amplitude and phase grid",
+          summary:
+            "Symbols spread out on a square lattice, mixing amplitude and phase shifts. Wider spacing improves noise tolerance, but the varying power stresses non-linear amplifiers.",
+          positions: (() => {
+            const axis = [-3, -1, 1, 3];
+            const scale = 1 / Math.sqrt(
+              axis.reduce((acc, i) => acc + i * i, 0) / axis.length * 2
+            );
+            return axis.flatMap((ix) =>
+              axis.map((qy) => ({
+                x: ix * scale,
+                y: qy * scale,
+              }))
+            );
+          })(),
+        },
+        {
+          id: "apsk",
+          name: "16-APSK · Rings for satellite links",
+          summary:
+            "Two concentric rings reserve higher energy symbols for outer points while keeping a nearly constant envelope. APSK eases distortion in satellite front-ends yet separates phases better than pure PSK.",
+          positions: (() => {
+            const inner = 4;
+            const outer = 12;
+            const innerRadius = 0.52;
+            const outerRadius = 1.1;
+            const offset = Math.PI / inner;
+            const points = [];
+            for (let k = 0; k < inner; k += 1) {
+              const angle = (2 * Math.PI * k) / inner + offset;
+              points.push({ x: innerRadius * Math.cos(angle), y: innerRadius * Math.sin(angle) });
+            }
+            for (let k = 0; k < outer; k += 1) {
+              const angle = (2 * Math.PI * k) / outer;
+              points.push({ x: outerRadius * Math.cos(angle), y: outerRadius * Math.sin(angle) });
+            }
+            return points;
+          })(),
+        },
+      ];
+
+      const pointRadius = 0.055;
+      const animationDuration = 600;
+      const constellation = document.getElementById("constellation");
+      const pointsGroup = document.getElementById("points");
+      const toggleContainer = document.getElementById("scheme-toggle");
+      const schemeTitle = document.getElementById("scheme-title");
+      const schemeDescription = document.getElementById("scheme-description");
+      const tooltip = document.getElementById("tooltip");
+
+      const circles = [];
+      const pointState = schemes[0].positions.map((coord, index) => ({
+        current: { ...coord },
+        target: { ...coord },
+        element: null,
+        index,
+      }));
+
+      pointState.forEach((state) => {
+        const circle = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+        circle.setAttribute("cx", state.current.x.toString());
+        circle.setAttribute("cy", state.current.y.toString());
+        circle.setAttribute("r", pointRadius.toString());
+        circle.setAttribute("fill", "url(#pointGlow)");
+        circle.setAttribute("stroke", "#8b5cf6");
+        circle.setAttribute("stroke-width", "0.015");
+        circle.dataset.index = String(state.index);
+
+        circle.addEventListener("pointerenter", (event) => {
+          showTooltip(event, state);
+        });
+
+        circle.addEventListener("pointermove", (event) => {
+          showTooltip(event, state);
+        });
+
+        circle.addEventListener("pointerleave", hideTooltip);
+
+        pointsGroup.appendChild(circle);
+        state.element = circle;
+        circles.push(circle);
+      });
+
+      toggleContainer.innerHTML = schemes
+        .map(
+          (scheme, idx) => `
+            <button type="button" data-scheme="${scheme.id}" class="${idx === 0 ? "active" : ""}">
+              ${scheme.id.toUpperCase()}
+            </button>
+          `
+        )
+        .join("");
+
+      let activeSchemeIndex = 0;
+      let animationFrame = null;
+      let animationStart = null;
+
+      toggleContainer.addEventListener("click", (event) => {
+        const button = event.target.closest("button[data-scheme]");
+        if (!button) return;
+
+        const nextIndex = schemes.findIndex((scheme) => scheme.id === button.dataset.scheme);
+        if (nextIndex === -1 || nextIndex === activeSchemeIndex) return;
+
+        toggleContainer.querySelectorAll("button").forEach((btn) => btn.classList.remove("active"));
+        button.classList.add("active");
+        switchScheme(nextIndex);
+      });
+
+      function switchScheme(nextIndex) {
+        const nextScheme = schemes[nextIndex];
+        schemeTitle.textContent = nextScheme.name;
+        schemeDescription.textContent = nextScheme.summary;
+
+        pointState.forEach((state, idx) => {
+          state.start = { ...state.current };
+          state.target = {
+            x: nextScheme.positions[idx].x,
+            y: nextScheme.positions[idx].y,
+          };
+        });
+
+        activeSchemeIndex = nextIndex;
+        startAnimation();
+      }
+
+      function startAnimation() {
+        if (animationFrame) cancelAnimationFrame(animationFrame);
+        animationStart = null;
+        animationFrame = requestAnimationFrame(animate);
+      }
+
+      function animate(timestamp) {
+        if (typeof timestamp !== "number") {
+          animationFrame = requestAnimationFrame(animate);
+          return;
+        }
+
+        if (!animationStart) animationStart = timestamp;
+        const elapsed = Math.min(1, (timestamp - animationStart) / animationDuration);
+        const eased = easeInOutCubic(elapsed);
+
+        pointState.forEach((state) => {
+          const { start, target } = state;
+          const x = start.x + (target.x - start.x) * eased;
+          const y = start.y + (target.y - start.y) * eased;
+          state.current = { x, y };
+          state.element.setAttribute("cx", x.toFixed(5));
+          state.element.setAttribute("cy", y.toFixed(5));
+        });
+
+        if (elapsed < 1) {
+          animationFrame = requestAnimationFrame(animate);
+        } else {
+          animationFrame = null;
+        }
+      }
+
+      function showTooltip(event, state) {
+        const { current } = state;
+        const amplitude = Math.hypot(current.x, current.y);
+        const phase = Math.atan2(current.y, current.x);
+        const phaseDegrees = (phase * 180) / Math.PI;
+
+        tooltip.innerHTML = `
+          <strong>Symbol ${state.index}</strong><br />
+          Amplitude: ${amplitude.toFixed(2)}<br />
+          Phase: ${phaseDegrees.toFixed(1)}°
+        `;
+
+        tooltip.style.left = `${event.clientX}px`;
+        tooltip.style.top = `${event.clientY}px`;
+        tooltip.classList.add("visible");
+      }
+
+      function hideTooltip() {
+        tooltip.classList.remove("visible");
+      }
+
+      function easeInOutCubic(t) {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      }
+    </script>
+  </body>
+</html>

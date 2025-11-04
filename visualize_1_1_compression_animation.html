@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Compression vs. Entropy Animation</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(180deg, rgba(18, 25, 38, 0.04), rgba(18, 25, 38, 0.12));
+        color: #162033;
+        min-height: 100vh;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        body {
+          background: #06090f;
+          color: #f5f7fb;
+        }
+      }
+
+      .page {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 48px 24px 80px;
+        display: flex;
+        flex-direction: column;
+        gap: 32px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: clamp(2rem, 2.4vw + 1.4rem, 3rem);
+        letter-spacing: -0.03em;
+      }
+
+      p.lead {
+        margin: 8px 0 0;
+        font-size: 1.05rem;
+        max-width: 60ch;
+        line-height: 1.6;
+        color: #3b475e;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        p.lead {
+          color: #d0d7e6;
+        }
+      }
+
+      .metrics-panel {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px 24px;
+        padding: 16px 20px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: 0 18px 48px rgba(10, 16, 28, 0.08);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .metrics-panel {
+          background: rgba(17, 23, 38, 0.85);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+        }
+      }
+
+      .metric {
+        display: flex;
+        flex-direction: column;
+        font-size: 0.92rem;
+        letter-spacing: 0.01em;
+      }
+
+      .metric span:first-child {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        opacity: 0.6;
+        letter-spacing: 0.12em;
+      }
+
+      .metric span:last-child {
+        font-weight: 600;
+        margin-top: 2px;
+      }
+
+      .chart-card {
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 28px;
+        box-shadow: 0 30px 60px rgba(18, 23, 38, 0.12);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .chart-card {
+          background: rgba(11, 16, 28, 0.9);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        }
+      }
+
+      .chart {
+        height: min(340px, 48vw);
+        display: flex;
+        align-items: flex-end;
+        gap: clamp(18px, 2vw, 32px);
+        padding: 24px clamp(12px, 2vw, 24px) 8px;
+      }
+
+      .bar {
+        flex: 1 1 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .bar-rect-wrap {
+        flex: 1;
+        width: 100%;
+        display: flex;
+        align-items: flex-end;
+        justify-content: center;
+      }
+
+      .bar-rect {
+        width: clamp(52%, 60%, 72%);
+        min-height: 8px;
+        border-radius: 12px 12px 4px 4px;
+        transition: height 0.85s cubic-bezier(0.16, 1, 0.29, 0.99), opacity 0.45s ease-out;
+        opacity: 0.95;
+      }
+
+      [data-bar="raw"] .bar-rect {
+        background: linear-gradient(180deg, #8d6bfa, #5f37d5);
+      }
+
+      [data-bar="huffman"] .bar-rect {
+        background: linear-gradient(180deg, #4ddbb4, #00a982);
+      }
+
+      [data-bar="lzw"] .bar-rect {
+        background: linear-gradient(180deg, #5bc0ff, #2563eb);
+      }
+
+      [data-bar="entropy"] .bar-rect {
+        background: linear-gradient(180deg, #ffaf7b, #eb6841);
+      }
+
+      .bar-metric {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        font-size: 0.88rem;
+        line-height: 1.35;
+      }
+
+      .bar-metric span:first-child {
+        font-weight: 600;
+      }
+
+      .bar-metric span:last-child {
+        opacity: 0.65;
+      }
+
+      .bar-label {
+        font-size: 0.84rem;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        opacity: 0.7;
+      }
+
+      .bar.inactive .bar-rect {
+        background: repeating-linear-gradient(
+          180deg,
+          rgba(118, 131, 165, 0.18),
+          rgba(118, 131, 165, 0.18) 4px,
+          rgba(118, 131, 165, 0.28) 4px,
+          rgba(118, 131, 165, 0.28) 8px
+        );
+        box-shadow: inset 0 0 0 1px rgba(118, 131, 165, 0.28);
+      }
+
+      .bar.inactive .bar-metric span:first-child {
+        color: inherit;
+      }
+
+      .bar.inactive .bar-metric span:last-child {
+        opacity: 0.45;
+      }
+
+      .bar.inactive .bar-label {
+        opacity: 0.45;
+      }
+
+      .stage-header {
+        margin-top: 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .stage-selector {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 12px;
+      }
+
+      button.stage-pill {
+        background: rgba(45, 78, 247, 0.12);
+        color: inherit;
+        padding: 6px 14px;
+        border-radius: 999px;
+        font-size: 0.82rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        box-shadow: none;
+        transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+      }
+
+      button.stage-pill .stage-pill-index {
+        font-size: 0.72rem;
+        opacity: 0.7;
+        margin-right: 6px;
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+      }
+
+      button.stage-pill.active {
+        background: #2d4ef7;
+        color: #fff;
+        transform: translateY(-1px);
+        box-shadow: 0 8px 20px rgba(45, 78, 247, 0.35);
+      }
+
+      button.stage-pill:not(.active):hover {
+        background: rgba(45, 78, 247, 0.18);
+        transform: none;
+        box-shadow: none;
+      }
+
+      .stage-counter {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.18em;
+        opacity: 0.55;
+      }
+
+      .stage-title {
+        font-size: 1.2rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+
+      .stage-description {
+        margin: 4px 0 0;
+        font-size: 0.95rem;
+        line-height: 1.6;
+        max-width: 65ch;
+      }
+
+      .controls {
+        margin-top: 20px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+
+      .input-card {
+        border-radius: 18px;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 24px 24px 26px;
+        box-shadow: 0 24px 48px rgba(18, 23, 38, 0.1);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .input-card {
+          background: rgba(11, 16, 28, 0.92);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+        }
+      }
+
+      .input-card h2 {
+        margin: 0 0 10px;
+        font-size: 1.25rem;
+        letter-spacing: -0.01em;
+      }
+
+      .input-lead {
+        margin: 0 0 16px;
+        font-size: 0.95rem;
+        line-height: 1.5;
+        color: #3b475e;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .input-lead {
+          color: #d0d7e6;
+        }
+      }
+
+      textarea#input-text {
+        width: 100%;
+        min-height: 160px;
+        padding: 16px 18px;
+        border-radius: 14px;
+        border: none;
+        resize: vertical;
+        font-family: "Menlo", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+        font-size: 0.9rem;
+        line-height: 1.45;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: inset 0 0 0 1px rgba(18, 25, 38, 0.08);
+        color: inherit;
+      }
+
+      textarea#input-text:focus {
+        outline: none;
+        box-shadow: inset 0 0 0 2px rgba(45, 78, 247, 0.45);
+      }
+
+      @media (prefers-color-scheme: dark) {
+        textarea#input-text {
+          background: rgba(9, 13, 22, 0.88);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+        }
+      }
+
+      .input-controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        align-items: center;
+        margin-top: 16px;
+      }
+
+      .input-status {
+        font-size: 0.8rem;
+        opacity: 0.7;
+      }
+
+      .preset-section-heading {
+        margin: 24px 0 10px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        opacity: 0.7;
+      }
+
+      .preset-grid {
+        display: grid;
+        gap: 14px;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
+      .preset-card {
+        border-radius: 14px;
+        padding: 16px 18px 18px;
+        background: rgba(255, 255, 255, 0.82);
+        box-shadow: inset 0 0 0 1px rgba(18, 25, 38, 0.06);
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .preset-card.active {
+        box-shadow: inset 0 0 0 2px rgba(45, 78, 247, 0.65);
+      }
+
+      .preset-card h3 {
+        margin: 0;
+        font-size: 1.02rem;
+        letter-spacing: -0.01em;
+      }
+
+      .preset-card p {
+        margin: 0;
+        font-size: 0.88rem;
+        line-height: 1.45;
+        opacity: 0.82;
+      }
+
+      .preset-card button {
+        margin-top: 6px;
+        align-self: flex-start;
+        padding: 8px 16px;
+        font-size: 0.82rem;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        .preset-card {
+          background: rgba(9, 13, 22, 0.9);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+      }
+
+      button {
+        appearance: none;
+        border: none;
+        background: #2d4ef7;
+        color: #fff;
+        padding: 10px 20px;
+        border-radius: 999px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease;
+      }
+
+      button.secondary {
+        background: rgba(45, 78, 247, 0.12);
+        color: inherit;
+      }
+
+      button:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 24px rgba(45, 78, 247, 0.25);
+      }
+
+      button.secondary:hover:not(:disabled) {
+        background: rgba(45, 78, 247, 0.18);
+        box-shadow: none;
+      }
+
+      @media (max-width: 700px) {
+        .chart-card {
+          padding: 22px 18px;
+        }
+
+        .chart {
+          gap: 16px;
+        }
+
+        .bar-rect {
+          width: 68%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <header>
+        <h1>Following Compression Down to the Entropy Bound</h1>
+        <p class="lead">
+          Watch a simple text stream shrink from raw 8-bit ASCII through Huffman coding and then
+          Lempel–Ziv–Welch (LZW) dictionary coding. Each step pushes the average bits per symbol,
+          illustrating how Shannon’s First Theorem sets the target for a memoryless source and how
+          richer source models move that limit.
+        </p>
+      </header>
+
+      <section class="metrics-panel" id="summary-metrics"></section>
+
+      <section class="chart-card">
+        <div class="chart" id="chart">
+          <div class="bar" data-bar="raw">
+            <div class="bar-rect-wrap">
+              <div class="bar-rect"></div>
+            </div>
+            <div class="bar-metric">
+              <span>8.00 bits/symbol</span>
+              <span>21,600 bits total</span>
+            </div>
+            <div class="bar-label">Raw ASCII</div>
+          </div>
+          <div class="bar" data-bar="huffman">
+            <div class="bar-rect-wrap">
+              <div class="bar-rect"></div>
+            </div>
+            <div class="bar-metric">
+              <span>8.00 bits/symbol</span>
+              <span>21,600 bits total</span>
+            </div>
+            <div class="bar-label">Huffman</div>
+          </div>
+          <div class="bar" data-bar="lzw">
+            <div class="bar-rect-wrap">
+              <div class="bar-rect"></div>
+            </div>
+            <div class="bar-metric">
+              <span>8.00 bits/symbol</span>
+              <span>21,600 bits total</span>
+            </div>
+            <div class="bar-label">LZW</div>
+          </div>
+          <div class="bar" data-bar="entropy">
+            <div class="bar-rect-wrap">
+              <div class="bar-rect"></div>
+            </div>
+            <div class="bar-metric">
+              <span>8.00 bits/symbol</span>
+              <span>21,600 bits total</span>
+            </div>
+            <div class="bar-label">Entropy limit</div>
+          </div>
+        </div>
+
+        <div class="stage-header">
+          <div class="stage-selector" id="stage-selector"></div>
+          <span class="stage-counter" id="stage-counter">Stage 1 of 3</span>
+          <span class="stage-title" id="stage-title">Raw ASCII stream</span>
+          <p class="stage-description" id="stage-description">
+            Each character is stored with 8 fixed bits. The 2,700 symbols in this sample occupy 21,600 bits.
+          </p>
+        </div>
+
+        <div class="controls">
+          <button id="play-button">Play animation</button>
+          <button id="step-button" class="secondary">Step &rsaquo;</button>
+          <button id="reset-button" class="secondary">Reset</button>
+        </div>
+      </section>
+
+      <section class="input-card">
+        <h2>Experiment with your own text</h2>
+        <p class="input-lead">
+          Paste any sample text below. The entropies, compression efficiencies, and bar chart update as you type.
+        </p>
+        <textarea id="input-text" spellcheck="false"></textarea>
+        <div class="input-controls">
+          <button type="button" id="apply-text-button">Update chart</button>
+          <button type="button" id="reset-text-button" class="secondary">Use default sample</button>
+          <span class="input-status" id="input-status"></span>
+        </div>
+        <p class="preset-section-heading">Curated examples</p>
+        <div class="preset-grid" id="preset-grid"></div>
+      </section>
+
+    </div>
+
+    <script>
+      const basePhrase = "THE RAIN IN SPAIN FALLS MAINLY IN THE PLAIN. ";
+      const repeatCount = 60;
+      const repetitionSampleText = basePhrase.repeat(repeatCount);
+      const huffmanRichText =
+        "INFORMATION THEORY LOVES BIASED SOURCES. SOME LETTERS DOMINATE THESE LINES WHILE OTHERS HARDLY APPEAR. THIS PARAGRAPH LEANS HEAVILY ON COMMON ENGLISH BIGRAMS TO SHOW HOW HUFFMAN CODING SHAVES WASTE EVEN WITHOUT LONG PHRASE REUSE.";
+      const noiseSampleText =
+        "7Z1JQX4P9M2K6V8LF3S0BHR5YTDCAUGWENI\nXB9K3T2Z6Q7V1P4R8L5S0MDAYJHUGNCEWI\n5N8D3W1F6Q0Z2Y9V4K7XBLEHPAJSTGUMCR\nQ4M1Z7X2V9K6P3J8H5T0RDLACWYBEGUFNS";
+      const rawBitsPerSymbol = 8;
+      const chartHeight = 240;
+      const presets = [
+        {
+          id: "redundant",
+          name: "Repetition Drill",
+          summary:
+            "Loops a single sentence so Huffman drops sharply and LZW nearly reaches the entropy bound by caching whole phrases.",
+          text: repetitionSampleText,
+        },
+        {
+          id: "huffman",
+          name: "Huffman Sweet Spot",
+          summary:
+            "Natural-language skew: frequent vowels and digrams drive gains for Huffman, while limited phrase reuse leaves LZW with modest extra savings.",
+          text: huffmanRichText,
+        },
+        {
+          id: "noise",
+          name: "High-Entropy Noise",
+          summary:
+            "A synthetic bit soup with symbols used uniformly at random—both compressors struggle because entropy is already near the 8-bit ceiling.",
+          text: noiseSampleText,
+        },
+      ];
+      const defaultSampleText = presets[0].text;
+
+      const chartElement = document.getElementById("chart");
+      const stageCounterEl = document.getElementById("stage-counter");
+      const stageTitleEl = document.getElementById("stage-title");
+      const stageDescriptionEl = document.getElementById("stage-description");
+      const playButton = document.getElementById("play-button");
+      const stepButton = document.getElementById("step-button");
+      const resetButton = document.getElementById("reset-button");
+      const metricsPanel = document.getElementById("summary-metrics");
+      const stageSelector = document.getElementById("stage-selector");
+      const textInput = document.getElementById("input-text");
+      const applyTextButton = document.getElementById("apply-text-button");
+      const resetTextButton = document.getElementById("reset-text-button");
+      const inputStatus = document.getElementById("input-status");
+      const presetGrid = document.getElementById("preset-grid");
+
+      const barElements = new Map();
+      chartElement.querySelectorAll(".bar").forEach((bar) => {
+        barElements.set(bar.dataset.bar, {
+          container: bar,
+          rect: bar.querySelector(".bar-rect"),
+          value: bar.querySelector(".bar-metric span:first-child"),
+          total: bar.querySelector(".bar-metric span:last-child"),
+        });
+      });
+
+      let metrics = null;
+      let stages = [];
+      let stageButtons = [];
+      let currentStage = 0;
+      let scheduledTimers = [];
+      let chartMaxBits = rawBitsPerSymbol;
+      let currentText = defaultSampleText;
+      let inputDebounceId = null;
+      let activePreset = presets[0];
+
+      function computeZeroOrderEntropy(text) {
+        const counts = new Map();
+        for (const ch of text) {
+          counts.set(ch, (counts.get(ch) || 0) + 1);
+        }
+        const total = text.length;
+        let entropy = 0;
+        counts.forEach((count) => {
+          const p = count / total;
+          entropy += -p * Math.log2(p);
+        });
+        return entropy;
+      }
+
+      function computeFirstOrderEntropy(text) {
+        if (text.length < 2) return 0;
+        const counts = new Map();
+        const transitions = new Map();
+        for (let i = 0; i < text.length - 1; i += 1) {
+          const a = text[i];
+          const b = text[i + 1];
+          counts.set(a, (counts.get(a) || 0) + 1);
+          if (!transitions.has(a)) {
+            transitions.set(a, new Map());
+          }
+          const map = transitions.get(a);
+          map.set(b, (map.get(b) || 0) + 1);
+        }
+        const totalPairs = text.length - 1;
+        let entropy = 0;
+        transitions.forEach((map, symbol) => {
+          const countA = counts.get(symbol) || 0;
+          if (!countA) return;
+          const pA = countA / totalPairs;
+          let conditional = 0;
+          map.forEach((countAB) => {
+            const pB = countAB / countA;
+            conditional += -pB * Math.log2(pB);
+          });
+          entropy += pA * conditional;
+        });
+        return entropy;
+      }
+
+      function computeHuffmanBits(text) {
+        if (!text || text.length === 0) {
+          return 0;
+        }
+        const counts = new Map();
+        for (const ch of text) {
+          counts.set(ch, (counts.get(ch) || 0) + 1);
+        }
+        const nodes = [];
+        counts.forEach((freq, symbol) => {
+          nodes.push({ freq, symbol });
+        });
+        if (nodes.length === 1) {
+          return text.length;
+        }
+        while (nodes.length > 1) {
+          nodes.sort((a, b) => a.freq - b.freq || String(a.symbol).localeCompare(String(b.symbol)));
+          const left = nodes.shift();
+          const right = nodes.shift();
+          nodes.push({ freq: left.freq + right.freq, left, right });
+        }
+        const codeLengths = new Map();
+        const assignLengths = (node, depth) => {
+          if (node.symbol !== undefined) {
+            codeLengths.set(node.symbol, depth || 1);
+            return;
+          }
+          assignLengths(node.left, depth + 1);
+          assignLengths(node.right, depth + 1);
+        };
+        assignLengths(nodes[0], 0);
+
+        let totalBits = 0;
+        counts.forEach((freq, symbol) => {
+          totalBits += freq * (codeLengths.get(symbol) || 0);
+        });
+        return totalBits;
+      }
+
+      function computeLzwBits(text) {
+        if (!text || text.length === 0) {
+          return 0;
+        }
+        const dictionary = new Map();
+        for (let i = 0; i < 256; i += 1) {
+          dictionary.set(String.fromCharCode(i), i);
+        }
+        let nextCode = 256;
+        let codeWidth = 9;
+        let threshold = 1 << codeWidth;
+        let buffer = "";
+        let totalBits = 0;
+        for (const ch of text) {
+          const combo = buffer + ch;
+          if (dictionary.has(combo)) {
+            buffer = combo;
+          } else {
+            totalBits += codeWidth;
+            if (nextCode < 4096) {
+              dictionary.set(combo, nextCode);
+              nextCode += 1;
+              if (nextCode === threshold && codeWidth < 12) {
+                codeWidth += 1;
+                threshold = 1 << codeWidth;
+              }
+            }
+            buffer = ch;
+          }
+        }
+        if (buffer) {
+          totalBits += codeWidth;
+        }
+        return totalBits;
+      }
+
+      function buildMetrics(text) {
+        const symbolCount = text.length;
+        const uniqueSymbols = symbolCount ? new Set(text).size : 0;
+        const huffmanTotalBits = computeHuffmanBits(text);
+        const lzwTotalBits = computeLzwBits(text);
+        const zeroOrderEntropy = symbolCount ? computeZeroOrderEntropy(text) : 0;
+        const conditionalEntropy = symbolCount ? computeFirstOrderEntropy(text) : 0;
+
+        return {
+          text,
+          symbolCount,
+          uniqueSymbols,
+          rawBitsPerSymbol,
+          rawTotalBits: symbolCount * rawBitsPerSymbol,
+          huffmanBitsPerSymbol: symbolCount ? huffmanTotalBits / symbolCount : 0,
+          huffmanTotalBits,
+          lzwBitsPerSymbol: symbolCount ? lzwTotalBits / symbolCount : 0,
+          lzwTotalBits,
+          zeroOrderEntropy,
+          zeroOrderEntropyTotalBits: zeroOrderEntropy * symbolCount,
+          conditionalEntropy,
+          conditionalEntropyTotalBits: conditionalEntropy * symbolCount,
+        };
+      }
+
+      function formatBits(bits) {
+        if (!Number.isFinite(bits)) {
+          return "0";
+        }
+        return Math.round(bits).toLocaleString("en-US");
+      }
+
+      function formatNumber(value, digits = 2) {
+        if (!Number.isFinite(value)) {
+          return Number.parseFloat(0).toFixed(digits);
+        }
+        return Number.parseFloat(value).toFixed(digits);
+      }
+
+      function computeChartBaseline(metricsObject) {
+        const values = [
+          metricsObject.rawBitsPerSymbol,
+          metricsObject.huffmanBitsPerSymbol,
+          metricsObject.lzwBitsPerSymbol,
+          metricsObject.zeroOrderEntropy,
+          metricsObject.conditionalEntropy,
+        ].filter((value) => Number.isFinite(value) && value > 0);
+
+        return values.length ? Math.max(...values) : rawBitsPerSymbol;
+      }
+
+      function renderMetricsPanel(metricsObject) {
+        metricsPanel.innerHTML = [
+          `<div class="metric"><span>Symbols analysed</span><span>${metricsObject.symbolCount.toLocaleString("en-US")}</span></div>`,
+          `<div class="metric"><span>Distinct symbols</span><span>${metricsObject.uniqueSymbols.toLocaleString("en-US")}</span></div>`,
+          `<div class="metric"><span>Raw size</span><span>${formatBits(metricsObject.rawTotalBits)} bits</span></div>`,
+          `<div class="metric"><span>Huffman size</span><span>${formatBits(metricsObject.huffmanTotalBits)} bits</span></div>`,
+          `<div class="metric"><span>LZW size</span><span>${formatBits(metricsObject.lzwTotalBits)} bits</span></div>`,
+        ].join("");
+      }
+
+      function buildStages(metricsObject) {
+        return [
+          {
+            label: "Raw stream",
+            title: "Raw ASCII stream",
+            description: `${metricsObject.symbolCount.toLocaleString("en-US")} symbols × 8 bits = ${formatBits(metricsObject.rawTotalBits)} bits in fixed-width storage.`,
+            bars: {
+              raw: metricsObject.rawBitsPerSymbol,
+              huffman: null,
+              lzw: null,
+              entropy: null,
+            },
+          },
+          {
+            label: "Huffman coding",
+            title: "Huffman coding · memoryless model",
+            description: `Huffman coding assigns shorter codewords to frequent symbols. The average drops to ${formatNumber(metricsObject.huffmanBitsPerSymbol)} bits/symbol, approaching the zero-order Shannon limit of ${formatNumber(metricsObject.zeroOrderEntropy)} bits/symbol estimated from symbol frequencies.`,
+            bars: {
+              raw: metricsObject.rawBitsPerSymbol,
+              huffman: metricsObject.huffmanBitsPerSymbol,
+              lzw: null,
+              entropy: metricsObject.zeroOrderEntropy,
+            },
+          },
+          {
+            label: "LZW dictionaries",
+            title: "LZW dictionary coding · context captured",
+            description: `LZW reuses whole phrases, shrinking the stream to ${formatNumber(metricsObject.lzwBitsPerSymbol)} bits/symbol (${formatBits(metricsObject.lzwTotalBits)} bits total). Accounting for symbol-to-symbol context, the conditional entropy floor is ${formatNumber(metricsObject.conditionalEntropy)} bits/symbol.`,
+            bars: {
+              raw: metricsObject.rawBitsPerSymbol,
+              huffman: metricsObject.huffmanBitsPerSymbol,
+              lzw: metricsObject.lzwBitsPerSymbol,
+              entropy: metricsObject.conditionalEntropy,
+            },
+          },
+        ];
+      }
+
+      function updateStatusMessage(text, context) {
+        if (!inputStatus) return;
+        const pieces = [];
+        if (context.preset) {
+          pieces.push(`${context.preset.name} — ${context.preset.summary}`);
+        } else if (context.usingDefault) {
+          const note = context.reason === "blank" ? "Input was blank; reverted to default sample." : "Using default sample.";
+          pieces.push(note);
+        } else {
+          pieces.push("Using your custom text.");
+        }
+        pieces.push(`${metrics.symbolCount.toLocaleString("en-US")} symbols · ${metrics.uniqueSymbols.toLocaleString("en-US")} distinct`);
+        inputStatus.textContent = pieces.join("  •  ");
+      }
+
+      function renderStageSelector() {
+        if (!stageSelector) return;
+        stageSelector.innerHTML = stages
+          .map(
+            (stage, index) => `
+              <button type="button" class="stage-pill" data-stage="${index}">
+                <span class="stage-pill-index">${index + 1}</span>
+                <span>${stage.label}</span>
+              </button>
+            `
+          )
+          .join("");
+        stageButtons = Array.from(stageSelector.querySelectorAll(".stage-pill"));
+        stageButtons.forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            const targetIndex = Number.parseInt(button.dataset.stage || "0", 10);
+            clearTimers();
+            setStage(targetIndex);
+          });
+        });
+      }
+
+      function renderPresetGrid() {
+        if (!presetGrid) return;
+        presetGrid.innerHTML = presets
+          .map(
+            (preset) => `
+              <article class="preset-card" data-preset-id="${preset.id}">
+                <h3>${preset.name}</h3>
+                <p>${preset.summary}</p>
+                <button type="button" data-preset="${preset.id}">Use this text</button>
+              </article>
+            `
+          )
+          .join("");
+        presetGrid.querySelectorAll("button[data-preset]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const target = presets.find((item) => item.id === button.dataset.preset);
+            if (!target) return;
+            if (textInput) {
+              textInput.value = target.text;
+            }
+            updateVisualizationFromText(target.text, { pushValueToTextarea: true, preset: target });
+          });
+        });
+        updatePresetSelection();
+      }
+
+      function updatePresetSelection() {
+        if (!presetGrid) return;
+        const targetId = activePreset ? activePreset.id : "";
+        presetGrid.querySelectorAll(".preset-card").forEach((card) => {
+          card.classList.toggle("active", card.dataset.presetId === targetId);
+        });
+      }
+
+      function setBarValue(key, bitsPerSymbol, animate = true) {
+        const elements = barElements.get(key);
+        if (!elements) return;
+        const { container, rect, value, total } = elements;
+
+        const isInactive = bitsPerSymbol == null;
+        container.classList.toggle("inactive", isInactive);
+
+        const baseline = chartMaxBits > 0 ? chartMaxBits : rawBitsPerSymbol;
+        const effectiveBits = isInactive ? 0 : bitsPerSymbol;
+        let height = Math.max(isInactive ? 0 : 6, (effectiveBits / baseline) * chartHeight);
+
+        if (!animate) {
+          rect.style.transition = "none";
+          rect.style.height = `${height}px`;
+          requestAnimationFrame(() => {
+            rect.style.transition = "";
+          });
+        } else {
+          rect.style.transition = "";
+          requestAnimationFrame(() => {
+            rect.style.height = `${height}px`;
+          });
+        }
+
+        if (isInactive) {
+          value.textContent = "—";
+          total.textContent = "Introduced later";
+          return;
+        }
+
+        value.textContent = `${formatNumber(bitsPerSymbol)} bits/symbol`;
+        const totalBits = metrics && metrics.symbolCount ? bitsPerSymbol * metrics.symbolCount : 0;
+        const labelPrefix = key === "entropy" ? "≈" : "";
+        total.textContent =
+          metrics && metrics.symbolCount
+            ? `${labelPrefix}${formatBits(totalBits)} bits total`
+            : `${labelPrefix}0 bits total`;
+      }
+
+      function setStage(index, options = {}) {
+        if (!stages[index]) return;
+        const { animate = true } = options;
+        currentStage = index;
+        const stage = stages[index];
+        stageCounterEl.textContent = `Stage ${index + 1} of ${stages.length}`;
+        stageTitleEl.textContent = stage.title;
+        stageDescriptionEl.textContent = stage.description;
+        if (stageButtons.length > 0) {
+          stageButtons.forEach((button) => {
+            button.classList.toggle(
+              "active",
+              Number.parseInt(button.dataset.stage || "-1", 10) === index
+            );
+          });
+        }
+        Object.entries(stage.bars).forEach(([key, value]) => {
+          setBarValue(key, value, animate);
+        });
+        if (stepButton) {
+          stepButton.disabled = index >= stages.length - 1;
+        }
+      }
+
+      function clearTimers() {
+        scheduledTimers.forEach((id) => clearTimeout(id));
+        scheduledTimers = [];
+      }
+
+      function playSequence() {
+        clearTimers();
+        setStage(0, { animate: false });
+        let delay = 400;
+        for (let i = 1; i < stages.length; i += 1) {
+          const timeout = setTimeout(() => setStage(i), delay);
+          scheduledTimers.push(timeout);
+          delay += 1800;
+        }
+      }
+
+      function stepForward() {
+        const nextIndex = Math.min(currentStage + 1, stages.length - 1);
+        setStage(nextIndex);
+      }
+
+      function resetAnimation() {
+        clearTimers();
+        setStage(0, { animate: false });
+        setTimeout(() => setStage(0), 50);
+      }
+
+      function resolveText(value) {
+        if (typeof value !== "string") {
+          return { text: defaultSampleText, usingDefault: true, reason: "empty" };
+        }
+        if (value.trim().length === 0) {
+          return { text: defaultSampleText, usingDefault: true, reason: "blank" };
+        }
+        return { text: value, usingDefault: false, reason: null };
+      }
+
+      function updateVisualizationFromText(userText, options = {}) {
+        const { pushValueToTextarea = false, preset = null } = options;
+        const { text, usingDefault, reason } = resolveText(userText);
+        currentText = text;
+        const inferredPreset =
+          preset ||
+          (usingDefault ? presets[0] : null) ||
+          presets.find((item) => item.text === text) ||
+          null;
+        activePreset = inferredPreset;
+        metrics = buildMetrics(text);
+        chartMaxBits = computeChartBaseline(metrics);
+        stages = buildStages(metrics);
+        renderMetricsPanel(metrics);
+        renderStageSelector();
+        updatePresetSelection();
+        updateStatusMessage(text, { usingDefault, reason, preset: inferredPreset });
+        if (pushValueToTextarea && textInput) {
+          textInput.value = text;
+        }
+        resetAnimation();
+      }
+
+      if (textInput) {
+        textInput.value = defaultSampleText;
+        textInput.addEventListener("input", () => {
+          if (inputDebounceId) {
+            clearTimeout(inputDebounceId);
+          }
+          inputDebounceId = setTimeout(() => {
+            updateVisualizationFromText(textInput.value);
+          }, 280);
+        });
+      }
+
+      if (applyTextButton) {
+        applyTextButton.addEventListener("click", () => {
+          if (inputDebounceId) {
+            clearTimeout(inputDebounceId);
+            inputDebounceId = null;
+          }
+          updateVisualizationFromText(textInput ? textInput.value : currentText);
+        });
+      }
+
+      if (resetTextButton) {
+        resetTextButton.addEventListener("click", () => {
+          if (textInput) {
+            textInput.value = defaultSampleText;
+          }
+          updateVisualizationFromText(defaultSampleText, { pushValueToTextarea: true, preset: presets[0] });
+        });
+      }
+
+      if (playButton) {
+        playButton.addEventListener("click", playSequence);
+      }
+
+      if (stepButton) {
+        stepButton.addEventListener("click", () => {
+          clearTimers();
+          stepForward();
+        });
+      }
+
+      if (resetButton) {
+        resetButton.addEventListener("click", resetAnimation);
+      }
+
+      renderPresetGrid();
+      updateVisualizationFromText(defaultSampleText, { pushValueToTextarea: true, preset: presets[0] });
+    </script>
+  </body>
+</html>

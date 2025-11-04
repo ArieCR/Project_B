@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OFDM vs. SC-FDMA Visualization</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; color: #333; }
+        .container { max-width: 1200px; margin: 20px auto; padding: 20px; background-color: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1, h2 { text-align: center; color: #1a237e; }
+        .main-content { display: flex; flex-direction: column; gap: 30px; }
+        .row { display: flex; justify-content: space-around; gap: 20px; }
+        .column { flex: 1; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fafafa; }
+        .column h3 { text-align: center; margin-top: 0; color: #3f51b5; }
+        .plot-container { height: 300px; }
+        .controls { text-align: center; margin-bottom: 20px; }
+        button { background-color: #3f51b5; color: white; border: none; padding: 12px 24px; font-size: 16px; border-radius: 5px; cursor: pointer; transition: background-color 0.3s; }
+        button:hover { background-color: #303f9f; }
+        button.active { background-color: #1a237e; }
+        p { line-height: 1.6; text-align: justify; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>OFDM vs. SC-FDMA</h1>
+    <p>
+        In LTE, the downlink (from base station to user) and uplink (from user to base station) use different technologies. The downlink relies on <strong>OFDM (Orthogonal Frequency-Division Multiplexing)</strong>, while the uplink adopts <strong>SC-FDMA (Single-Carrier Frequency Division Multiple Access)</strong>. The primary reason is that OFDM signals have a high <strong>Peak-to-Average Power Ratio (PAPR)</strong>, which requires more expensive and less power-efficient amplifiers on mobile devices. SC-FDMA was introduced to solve this issue, offering lower PAPR while keeping many of OFDM's benefits.
+    </p>
+    <p>
+        This visualization interactively demonstrates the signal generation process for both and highlights the key differences.
+    </p>
+
+    <div class="main-content">
+        <div class="controls">
+            <button id="btn-step1" class="active">1. Modulated Symbols</button>
+            <button id="btn-step2">2. DFT Spreading (SC-FDMA)</button>
+            <button id="btn-step3">3. Subcarrier Mapping</button>
+            <button id="btn-step4">4. Time Domain Signal (PAPR)</button>
+        </div>
+
+        <div class="row">
+            <div class="column">
+                <h3>OFDM (Downlink)</h3>
+                <div id="ofdm-plot" class="plot-container"></div>
+            </div>
+            <div class="column">
+                <h3>SC-FDMA (Uplink)</h3>
+                <div id="scfdma-plot" class="plot-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Basic DSP functions ---
+    // Simple DFT implementation
+    function dft(x) {
+        const N = x.length;
+        let X_re = new Array(N).fill(0);
+        let X_im = new Array(N).fill(0);
+        for (let k = 0; k < N; k++) {
+            for (let n = 0; n < N; n++) {
+                const angle = 2 * Math.PI * k * n / N;
+                X_re[k] += x[n][0] * Math.cos(angle) + x[n][1] * Math.sin(angle);
+                X_im[k] += -x[n][0] * Math.sin(angle) + x[n][1] * Math.cos(angle);
+            }
+        }
+        return X_re.map((re, i) => [re, X_im[i]]);
+    }
+
+    // Simple IDFT implementation
+    function idft(X) {
+        const N = X.length;
+        let x_re = new Array(N).fill(0);
+        let x_im = new Array(N).fill(0);
+        for (let n = 0; n < N; n++) {
+            for (let k = 0; k < N; k++) {
+                const angle = 2 * Math.PI * k * n / N;
+                x_re[n] += X[k][0] * Math.cos(angle) - X[k][1] * Math.sin(angle);
+                x_im[n] += X[k][0] * Math.sin(angle) + X[k][1] * Math.cos(angle);
+            }
+        }
+        return x_re.map((re, i) => [re / N, x_im[i] / N]);
+    }
+
+    // --- Simulation Parameters ---
+    const N_SUBCARRIERS = 64; // IFFT size
+    const M_SYMBOLS = 16;     // Number of data symbols
+    const MODULATION_MAP = { // QPSK
+        '00': [1, 1], '01': [1, -1], '10': [-1, 1], '11': [-1, -1]
+    };
+    const MOD_KEYS = Object.keys(MODULATION_MAP);
+
+    // --- Data Generation ---
+    let dataSymbols = Array.from({ length: M_SYMBOLS }, () => {
+        const key = MOD_KEYS[Math.floor(Math.random() * MOD_KEYS.length)];
+        return MODULATION_MAP[key];
+    });
+
+    // --- Processing Steps ---
+    // Step 1: Modulation (already done in dataSymbols)
+
+    // Step 2: SC-FDMA specific DFT spreading
+    let scfdmaDftSpread = dft(dataSymbols);
+
+    // Step 3: Subcarrier Mapping
+    let ofdmMapped = new Array(N_SUBCARRIERS).fill([0, 0]);
+    let scfdmaMapped = new Array(N_SUBCARRIERS).fill([0, 0]);
+    const startIdx = Math.floor((N_SUBCARRIERS - M_SYMBOLS) / 2);
+    for (let i = 0; i < M_SYMBOLS; i++) {
+        ofdmMapped[startIdx + i] = dataSymbols[i];
+        scfdmaMapped[startIdx + i] = scfdmaDftSpread[i];
+    }
+
+    // Step 4: IFFT to get time-domain signal
+    let ofdmTimeSignal = idft(ofdmMapped);
+    let scfdmaTimeSignal = idft(scfdmaMapped);
+
+    function getMagnitude(signal) {
+        return signal.map(s => Math.sqrt(s[0]**2 + s[1]**2));
+    }
+
+    let ofdmMagnitude = getMagnitude(ofdmTimeSignal);
+    let scfdmaMagnitude = getMagnitude(scfdmaTimeSignal);
+
+    function calculatePAPR(magnitude) {
+        const peak = Math.max(...magnitude)**2;
+        const avg = magnitude.reduce((sum, val) => sum + val**2, 0) / magnitude.length;
+        return 10 * Math.log10(peak / avg);
+    }
+
+    const ofdmPAPR = calculatePAPR(ofdmMagnitude);
+    const scfdmaPAPR = calculatePAPR(scfdmaMagnitude);
+
+    // --- Plotting ---
+    const ofdmPlotDiv = 'ofdm-plot';
+    const scfdmaPlotDiv = 'scfdma-plot';
+    const buttons = document.querySelectorAll('.controls button');
+
+    function plotStep1() {
+        const trace = {
+            x: dataSymbols.map(d => d[0]),
+            y: dataSymbols.map(d => d[1]),
+            mode: 'markers',
+            type: 'scatter',
+            marker: { size: 10, color: '#3f51b5' }
+        };
+        const layout = { title: 'QPSK Constellation', xaxis: { title: 'In-Phase' }, yaxis: { title: 'Quadrature' } };
+        Plotly.newPlot(ofdmPlotDiv, [trace], layout);
+        Plotly.newPlot(scfdmaPlotDiv, [trace], layout);
+    }
+
+    function plotStep2() {
+        const ofdmTrace = {
+            x: dataSymbols.map(d => d[0]),
+            y: dataSymbols.map(d => d[1]),
+            mode: 'markers', type: 'scatter', name: 'Original Symbols'
+        };
+        const scfdmaTrace = {
+            x: scfdmaDftSpread.map(d => d[0]),
+            y: scfdmaDftSpread.map(d => d[1]),
+            mode: 'markers', type: 'scatter', name: 'DFT-Spread Symbols',
+            marker: { color: '#ff6f00' }
+        };
+        Plotly.newPlot(ofdmPlotDiv, [ofdmTrace], { title: 'Symbols (No Change)' });
+        Plotly.newPlot(scfdmaPlotDiv, [scfdmaTrace], { title: 'Symbols after DFT Spreading' });
+    }
+
+    function plotStep3() {
+        const x_axis = Array.from({ length: N_SUBCARRIERS }, (_, i) => i);
+        const ofdmTrace = {
+            x: x_axis,
+            y: getMagnitude(ofdmMapped),
+            type: 'bar', name: 'OFDM', marker: { color: '#3f51b5' }
+        };
+        const scfdmaTrace = {
+            x: x_axis,
+            y: getMagnitude(scfdmaMapped),
+            type: 'bar', name: 'SC-FDMA', marker: { color: '#ff6f00' }
+        };
+        const layout = { title: 'Frequency Domain: Symbol Mapping', xaxis: { title: 'Subcarrier Index' }, yaxis: { title: 'Magnitude' } };
+        Plotly.newPlot(ofdmPlotDiv, [ofdmTrace], layout);
+        Plotly.newPlot(scfdmaPlotDiv, [scfdmaTrace], layout);
+    }
+
+    function plotStep4() {
+        const x_axis = Array.from({ length: N_SUBCARRIERS }, (_, i) => i);
+        const ofdmTrace = {
+            x: x_axis, y: ofdmMagnitude, mode: 'lines', name: 'OFDM', line: { color: '#3f51b5' }
+        };
+        const scfdmaTrace = {
+            x: x_axis, y: scfdmaMagnitude, mode: 'lines', name: 'SC-FDMA', line: { color: '#ff6f00' }
+        };
+        const ofdmLayout = { title: `Time Domain Signal (PAPR: ${ofdmPAPR.toFixed(2)} dB)`, xaxis: { title: 'Time Sample' }, yaxis: { title: 'Magnitude' } };
+        const scfdmaLayout = { title: `Time Domain Signal (PAPR: ${scfdmaPAPR.toFixed(2)} dB)`, xaxis: { title: 'Time Sample' }, yaxis: { title: 'Magnitude' } };
+        Plotly.newPlot(ofdmPlotDiv, [ofdmTrace], ofdmLayout);
+        Plotly.newPlot(scfdmaPlotDiv, [scfdmaTrace], scfdmaLayout);
+    }
+
+    function updatePlot(step) {
+        buttons.forEach(btn => btn.classList.remove('active'));
+        document.getElementById(`btn-step${step}`).classList.add('active');
+        switch (step) {
+            case 1: plotStep1(); break;
+            case 2: plotStep2(); break;
+            case 3: plotStep3(); break;
+            case 4: plotStep4(); break;
+        }
+    }
+
+    document.getElementById('btn-step1').addEventListener('click', () => updatePlot(1));
+    document.getElementById('btn-step2').addEventListener('click', () => updatePlot(2));
+    document.getElementById('btn-step3').addEventListener('click', () => updatePlot(3));
+    document.getElementById('btn-step4').addEventListener('click', () => updatePlot(4));
+
+    // Initial plot
+    plotStep1();
+</script>
+
+</body>
+</html>
