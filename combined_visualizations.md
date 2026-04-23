@@ -6,10 +6,9 @@ A single-page viewer (`combined_visualizations.html`) that embeds all interactiv
 
 | # | Title | File |
 |---|-------|------|
-| 1.1 | Compression Animation | `visualize_1_1_compression_animation.html` |
-| 1.2 | Constellation Morph | `visualize_1_2_constellation_morph.html` |
+| Introduction I | Compression Animation | `visualize_Introduction_I_compression_animation.html` |
+| Introduction II | OFDM Modulation | `visualize_Introduction_II_OFDM_Modulation.html` |
 | 1.5 | OFDM Explorer | `visualize_1_5_ofdm_explorer.html` |
-| 2.1 | OFDM Modulation | `visualize_2_1_OFDM_Modulation.html` |
 | 2.2 | LTE Bandwidth vs RBs | `visualize_2_2_LTE_bandwidth_vs_rbs.html` |
 | 2.3 | LTE Duplexing | `visualize_2_3_lte_duplexing.html` |
 | 2.6 | OFDMA Downlink Scheduler | `visualize_2_6_ofdma_downlink_scheduler.html` |
