@@ -1,780 +1,523 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>2.1 OFDM Modulation — LTE Performance Constellation</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-        --page-width: 1100px;
-      }
+<head>
+  <meta charset="utf-8" />
+  <title>1.2 LTE Requirement</title>
+  <style>
+    :root { --page-width: 1100px; }
+    * { box-sizing: border-box; }
 
-      * {
-        box-sizing: border-box;
-      }
+    body {
+      margin: 0;
+      font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+      background: radial-gradient(circle at 20% 20%, rgba(37,99,235,0.08), rgba(12,19,32,0.85));
+      color: #0f172a;
+      min-height: 100vh;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { background: radial-gradient(circle at 18% 22%, rgba(59,76,105,0.35), rgba(4,7,12,0.92)); color: #e2e8f0; }
+    }
 
-      body {
-        margin: 0;
-        font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
-        background: radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.08), rgba(12, 19, 32, 0.85));
-        color: #0f172a;
-        min-height: 100vh;
-      }
+    .page { max-width: var(--page-width); margin: 0 auto; padding: 56px 28px 96px; display: flex; flex-direction: column; gap: 34px; }
 
-      @media (prefers-color-scheme: dark) {
-        body {
-          background: radial-gradient(circle at 18% 22%, rgba(59, 76, 105, 0.35), rgba(4, 7, 12, 0.92));
-          color: #e2e8f0;
-        }
-      }
+    header h1 { margin: 0; font-size: clamp(2.2rem, 2.8vw + 1.4rem, 3.5rem); letter-spacing: -0.025em; }
+    header p { margin: 14px 0 0; max-width: 72ch; font-size: 1.05rem; line-height: 1.7; color: rgba(15,23,42,0.78); }
+    @media (prefers-color-scheme: dark) { header p { color: rgba(226,232,255,0.78); } }
 
-      .page {
-        max-width: var(--page-width);
-        margin: 0 auto;
-        padding: 56px 28px 96px;
-        display: flex;
-        flex-direction: column;
-        gap: 34px;
-      }
+    .card {
+      border-radius: 26px;
+      background: rgba(255,255,255,0.88);
+      padding: 34px 36px 40px;
+      box-shadow: 0 36px 80px rgba(15,23,42,0.28);
+      backdrop-filter: blur(6px);
+    }
+    @media (prefers-color-scheme: dark) {
+      .card { background: rgba(9,14,25,0.88); box-shadow: inset 0 0 0 1px rgba(148,163,184,0.18); }
+    }
 
-      header h1 {
-        margin: 0;
-        font-size: clamp(2.2rem, 2.8vw + 1.4rem, 3.5rem);
-        letter-spacing: -0.025em;
-      }
+    .scene {
+      display: grid;
+      grid-template-columns: minmax(300px, 1.1fr) minmax(320px, 1fr);
+      gap: clamp(24px, 4vw, 48px);
+      align-items: start;
+    }
+    @media (max-width: 960px) { .scene { grid-template-columns: 1fr; } }
 
-      header p {
-        margin: 14px 0 0;
-        max-width: 72ch;
-        font-size: 1.05rem;
-        line-height: 1.7;
-        color: rgba(15, 23, 42, 0.78);
-      }
+    /* ── Left: canvas section ── */
+    .grid-section { display: flex; flex-direction: column; gap: 14px; }
 
-      @media (prefers-color-scheme: dark) {
-        header p {
-          color: rgba(226, 232, 255, 0.78);
-        }
-      }
+    .canvas-wrap {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 5 / 4;
+      border-radius: 16px;
+      overflow: hidden;
+      background: #0a1221;
+      box-shadow: inset 0 0 0 1px rgba(148,163,184,0.18);
+    }
+    canvas { width: 100%; height: 100%; display: block; }
 
-      .card {
-        border-radius: 26px;
-        background: rgba(255, 255, 255, 0.88);
-        padding: 34px 36px 40px;
-        box-shadow: 0 36px 80px rgba(15, 23, 42, 0.28);
-        backdrop-filter: blur(6px);
-      }
+    .grid-label {
+      font-size: 0.78rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: rgba(15,23,42,0.52);
+    }
+    @media (prefers-color-scheme: dark) { .grid-label { color: rgba(226,232,255,0.48); } }
 
-      @media (prefers-color-scheme: dark) {
-        .card {
-          background: rgba(9, 14, 25, 0.88);
-          box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
-        }
-      }
+    .legend {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      font-size: 0.82rem;
+      color: rgba(15,23,42,0.72);
+    }
+    @media (prefers-color-scheme: dark) { .legend { color: rgba(226,232,255,0.72); } }
+    .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+    .legend-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; }
+    .legend-swatch.rs { border-radius: 50%; }
 
-      .scene {
-        display: grid;
-        grid-template-columns: minmax(320px, 1.05fr) minmax(340px, 1fr);
-        gap: clamp(28px, 5vw, 52px);
-        align-items: start;
-      }
+    /* ── Right: requirement panel ── */
+    .story-panel { display: flex; flex-direction: column; gap: 20px; }
 
-      @media (max-width: 980px) {
-        .scene {
-          grid-template-columns: 1fr;
-        }
-      }
+    .requirement-map { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 10px; }
+    .map-node {
+      border: none; border-radius: 16px; padding: 14px 16px;
+      background: rgba(37,99,235,0.09); color: inherit;
+      text-align: left; font-family: inherit; cursor: pointer;
+      transition: background 0.22s, transform 0.22s, box-shadow 0.22s;
+    }
+    .map-node span { display: block; font-size: 0.76rem; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.72; }
+    .map-node strong { display: block; margin-top: 5px; font-size: 1.05rem; letter-spacing: -0.01em; }
+    .map-node:hover { background: rgba(37,99,235,0.16); transform: translateY(-2px); }
+    .map-node.active {
+      background: linear-gradient(120deg, rgba(37,99,235,0.9), rgba(59,130,246,0.78));
+      color: #fff;
+      box-shadow: 0 16px 36px rgba(37,99,235,0.3);
+    }
 
-      .canvas-wrap {
-        position: relative;
-        width: 100%;
-        aspect-ratio: 7 / 5;
-        border-radius: 24px;
-        overflow: hidden;
-        background: rgba(15, 23, 42, 0.9);
-        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
-      }
+    .requirement-detail {
+      display: flex; flex-direction: column; gap: 14px;
+      padding: 20px; border-radius: 16px;
+      background: rgba(15,23,42,0.05);
+    }
+    @media (prefers-color-scheme: dark) { .requirement-detail { background: rgba(148,163,184,0.08); } }
+    .requirement-detail h2 { margin: 0; font-size: 1.18rem; }
+    .requirement-detail p.lead { margin: 0; font-size: 0.97rem; line-height: 1.6; color: rgba(37,99,235,0.9); }
+    @media (prefers-color-scheme: dark) { .requirement-detail p.lead { color: rgba(96,165,250,0.9); } }
+    .requirement-detail p.body { margin: 0; font-size: 0.93rem; line-height: 1.72; color: rgba(15,23,42,0.76); }
+    @media (prefers-color-scheme: dark) { .requirement-detail p.body { color: rgba(226,232,255,0.76); } }
 
-      canvas {
-        width: 100%;
-        height: 100%;
-        display: block;
-      }
+    .metrics { display: grid; gap: 10px; margin-top: 4px; }
+    .metric { display: grid; gap: 5px; }
+    .metric-header { display: flex; justify-content: space-between; font-size: 0.82rem; letter-spacing: 0.04em; text-transform: uppercase; color: rgba(15,23,42,0.58); }
+    @media (prefers-color-scheme: dark) { .metric-header { color: rgba(226,232,255,0.58); } }
+    .metric-bar { position: relative; height: 5px; border-radius: 999px; background: rgba(148,163,184,0.18); overflow: hidden; }
+    .metric-bar span { position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(90deg, rgba(37,99,235,0.9), rgba(16,185,129,0.75)); transform-origin: left; transition: transform 0.48s ease; }
+  </style>
+</head>
+<body>
+<div class="page">
 
-      .canvas-overlay {
-        position: absolute;
-        inset: 0;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        gap: 18px;
-        padding: 22px 22px 18px;
-        pointer-events: none;
-      }
+  <header>
+    <h1>1.2 LTE Requirement</h1>
+    <p>
+      LTE defines a set of performance targets that shaped every aspect of its air interface — from peak throughput and spectrum flexibility to mobility support and latency. The resource grid below shows one 1 ms subframe: 14 symbol intervals in time × 6 resource blocks (72 subcarriers) in frequency. Select a requirement to see how it drives allocation decisions.
+    </p>
+  </header>
 
-      .figure-title {
-        font-size: 0.92rem;
-        letter-spacing: 0.18em;
-        text-transform: uppercase;
-        color: rgba(226, 232, 255, 0.82);
-      }
+  <section class="card">
+    <div class="scene">
 
-      .legend {
-        display: flex;
-        gap: 18px;
-        flex-wrap: wrap;
-        font-size: 0.82rem;
-        color: rgba(226, 232, 255, 0.78);
-      }
-
-      .legend span {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        letter-spacing: 0.05em;
-      }
-
-      .overlay-top {
-        display: flex;
-        flex-direction: column;
-        gap: 14px;
-      }
-
-      .overlay-bottom {
-        display: flex;
-        align-items: flex-end;
-        justify-content: space-between;
-        padding-top: 12px;
-      }
-
-      .axis {
-        font-size: 0.7rem;
-        letter-spacing: 0.32em;
-        text-transform: uppercase;
-        color: rgba(226, 232, 255, 0.5);
-      }
-
-      @media (prefers-color-scheme: light) {
-        .axis {
-          color: rgba(15, 23, 42, 0.55);
-        }
-      }
-
-      .axis.axis-y {
-        writing-mode: vertical-rl;
-        transform: translateY(-18px);
-      }
-
-      .axis.axis-x {
-        align-self: flex-end;
-      }
-
-      .legend i {
-        width: 16px;
-        height: 6px;
-        border-radius: 999px;
-        background: rgba(226, 232, 255, 0.78);
-      }
-
-      .legend i.bandwidth {
-        background: linear-gradient(90deg, rgba(96, 165, 250, 0.9), rgba(79, 70, 229, 0.9));
-      }
-
-      .legend i.mimo {
-        background: linear-gradient(90deg, rgba(16, 185, 129, 0.9), rgba(56, 189, 248, 0.9));
-      }
-
-      .legend i.latency {
-        background: linear-gradient(90deg, rgba(248, 113, 113, 0.9), rgba(251, 191, 36, 0.9));
-      }
-
-      .story-panel {
-        display: flex;
-        flex-direction: column;
-        gap: 26px;
-      }
-
-      .story-panel p {
-        margin: 0;
-        line-height: 1.7;
-        font-size: 0.98rem;
-        color: rgba(15, 23, 42, 0.82);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .story-panel p {
-          color: rgba(226, 232, 255, 0.82);
-        }
-      }
-
-      .requirement-map {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-        gap: 16px;
-      }
-
-      .map-node {
-        border: none;
-        border-radius: 22px;
-        padding: 16px 18px;
-        background: rgba(37, 99, 235, 0.1);
-        color: inherit;
-        text-align: left;
-        font-family: inherit;
-        cursor: pointer;
-        transition: background 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
-      }
-
-      .map-node span {
-        display: block;
-        font-size: 0.82rem;
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        opacity: 0.76;
-      }
-
-      .map-node strong {
-        display: block;
-        margin-top: 6px;
-        font-size: 1.08rem;
-        letter-spacing: -0.01em;
-      }
-
-      .map-node:hover {
-        background: rgba(37, 99, 235, 0.16);
-        transform: translateY(-2px);
-      }
-
-      .map-node.active {
-        background: linear-gradient(120deg, rgba(37, 99, 235, 0.9), rgba(59, 130, 246, 0.78));
-        color: #fff;
-        box-shadow: 0 20px 40px rgba(37, 99, 235, 0.35);
-      }
-
-      .requirement-detail {
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding: 22px;
-        border-radius: 20px;
-        background: rgba(15, 23, 42, 0.05);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .requirement-detail {
-          background: rgba(148, 163, 184, 0.08);
-        }
-      }
-
-      .requirement-detail h2 {
-        margin: 0;
-        font-size: 1.24rem;
-        letter-spacing: -0.01em;
-      }
-
-      .requirement-detail p.lead {
-        margin: 0;
-        font-size: 1rem;
-        line-height: 1.6;
-        color: rgba(37, 99, 235, 0.85);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .requirement-detail p.lead {
-          color: rgba(96, 165, 250, 0.88);
-        }
-      }
-
-      .requirement-detail p.body {
-        margin: 0;
-        font-size: 0.95rem;
-        line-height: 1.7;
-        color: rgba(15, 23, 42, 0.78);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .requirement-detail p.body {
-          color: rgba(226, 232, 255, 0.78);
-        }
-      }
-
-      .metrics {
-        display: grid;
-        gap: 12px;
-        margin-top: 8px;
-      }
-
-      .metric {
-        display: grid;
-        gap: 6px;
-      }
-
-      .metric-header {
-        display: flex;
-        justify-content: space-between;
-        font-size: 0.85rem;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        color: rgba(15, 23, 42, 0.6);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .metric-header {
-          color: rgba(226, 232, 255, 0.62);
-        }
-      }
-
-      .metric-bar {
-        position: relative;
-        height: 6px;
-        border-radius: 999px;
-        background: rgba(148, 163, 184, 0.18);
-        overflow: hidden;
-      }
-
-      .metric-bar span {
-        position: absolute;
-        inset: 0;
-        border-radius: inherit;
-        background: linear-gradient(90deg, rgba(37, 99, 235, 0.92), rgba(16, 185, 129, 0.76));
-        transform-origin: left center;
-        transform: scaleX(0.4);
-        transition: transform 0.5s ease;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="page">
-      <header>
-        <h1>2.1 OFDM Modulation</h1>
-        <p>
-          LTE blends orthogonal subcarriers, scalable channel bandwidths, advanced modulation, and multi-antenna processing to deliver broadband-like performance while staying compatible with legacy systems. Explore the constellation of design targets that shape the LTE air interface.
-        </p>
-      </header>
-
-      <section class="card">
-        <div class="scene">
-          <div class="canvas-wrap">
-            <canvas id="ofdmCanvas" aria-hidden="true"></canvas>
-            <div class="canvas-overlay">
-              <div class="overlay-top">
-                <span class="figure-title">Dynamic Orthogonal Subcarriers</span>
-                <div class="legend">
-                  <span><i class="bandwidth"></i>Resource Block Activity</span>
-                  <span><i class="mimo"></i>MIMO Energy</span>
-                  <span><i class="latency"></i>Latency Footprint (Amber Sweeps)</span>
-                </div>
-              </div>
-              <div class="overlay-bottom">
-                <span class="axis axis-y">Frequency</span>
-                <span class="axis axis-x">Time</span>
-              </div>
-            </div>
-          </div>
-          <div class="story-panel">
-            <p>
-              Each requirement below lights up a different aspect of the OFDM tapestry—taller blue-violet pillars reveal the flexible bandwidth blocks being scheduled, the multi-layer wave glow shows how much MIMO energy is pumping through the subcarriers, and the amber sweeps near the base trace the latency footprint. Click through the map to watch LTE retune itself.
-            </p>
-            <div class="requirement-map" role="tablist" aria-label="LTE requirements">
-              <button type="button" class="map-node active" data-requirement="data" role="tab" aria-selected="true">
-                <span>Peak Throughput</span>
-                <strong>326 Mbps</strong>
-              </button>
-              <button type="button" class="map-node" data-requirement="bandwidth" role="tab" aria-selected="false">
-                <span>Channel Widths</span>
-                <strong>1.4–20 MHz</strong>
-              </button>
-              <button type="button" class="map-node" data-requirement="efficiency" role="tab" aria-selected="false">
-                <span>Spectral Lift</span>
-                <strong>×3–4 DL</strong>
-              </button>
-              <button type="button" class="map-node" data-requirement="latency" role="tab" aria-selected="false">
-                <span>Responsiveness</span>
-                <strong>&lt;5 ms</strong>
-              </button>
-              <button type="button" class="map-node" data-requirement="mobility" role="tab" aria-selected="false">
-                <span>Mobility</span>
-                <strong>0–500 km/h</strong>
-              </button>
-              <button type="button" class="map-node" data-requirement="compatibility" role="tab" aria-selected="false">
-                <span>Evolution</span>
-                <strong>Legacy &amp; All-IP</strong>
-              </button>
-            </div>
-            <div class="requirement-detail" role="tabpanel">
-              <h2 id="reqTitle">Peak Data Rates</h2>
-              <p class="lead" id="reqLead">
-                Downlink pushes 326.4 Mbps using 4×4 MIMO with fixed 64QAM, while uplink peaks at 86.4 Mbps on a single antenna.
-              </p>
-              <p class="body" id="reqBody">
-                Under ideal FDD conditions, OFDM packs tightly spaced subcarriers that can each carry 6 bits per symbol; spatial multiplexing layers multiply the aggregate throughput so mobile users feel fiber-like speeds.
-              </p>
-              <div class="metrics" id="reqMetrics"></div>
-            </div>
-          </div>
+      <!-- Left: LTE resource grid -->
+      <div class="grid-section">
+        <div class="canvas-wrap">
+          <canvas id="rg"></canvas>
         </div>
-      </section>
+        <div class="grid-label">LTE time–frequency resource grid · 1 subframe (1 ms TTI) · 6 RBs shown</div>
+        <div class="legend">
+          <span class="legend-item"><span class="legend-swatch" style="background:#7c3aed"></span>64QAM</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:#059669"></span>16QAM</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:#2563eb"></span>QPSK</span>
+          <span class="legend-item"><span class="legend-swatch rs" style="background:#fbbf24"></span>Reference signal</span>
+          <span class="legend-item"><span class="legend-swatch" style="background:#1e293b; border:1px solid #334155"></span>Unallocated</span>
+        </div>
+      </div>
+
+      <!-- Right: requirements -->
+      <div class="story-panel">
+        <div class="requirement-map" role="tablist" aria-label="LTE requirements">
+          <button class="map-node active" data-req="throughput" role="tab" aria-selected="true">
+            <span>Peak Throughput</span><strong>326 Mbps</strong>
+          </button>
+          <button class="map-node" data-req="bandwidth" role="tab" aria-selected="false">
+            <span>Channel Width</span><strong>1.4 – 20 MHz</strong>
+          </button>
+          <button class="map-node" data-req="efficiency" role="tab" aria-selected="false">
+            <span>Spectral Efficiency</span><strong>×3 – 4 DL</strong>
+          </button>
+          <button class="map-node" data-req="latency" role="tab" aria-selected="false">
+            <span>Latency</span><strong>&lt; 5 ms</strong>
+          </button>
+          <button class="map-node" data-req="mobility" role="tab" aria-selected="false">
+            <span>Mobility</span><strong>≤ 350 km/h</strong>
+          </button>
+          <button class="map-node" data-req="compatibility" role="tab" aria-selected="false">
+            <span>Compatibility</span><strong>All-IP + Legacy</strong>
+          </button>
+        </div>
+
+        <div class="requirement-detail" role="tabpanel">
+          <h2 id="reqTitle"></h2>
+          <p class="lead" id="reqLead"></p>
+          <p class="body" id="reqBody"></p>
+          <div class="metrics" id="reqMetrics"></div>
+        </div>
+      </div>
 
     </div>
+  </section>
+</div>
 
-    <script>
-      (function () {
-        const requirements = {
-          data: {
-            title: "Peak Data Rates",
-            lead: "Downlink pushes 326.4 Mbps using 4×4 MIMO with fixed 64QAM, while uplink peaks at 86.4 Mbps on a single antenna.",
-            body: "Under ideal FDD conditions, OFDM packs tightly spaced subcarriers that can each carry 6 bits per symbol; spatial multiplexing layers multiply the aggregate throughput so mobile users feel fiber-like speeds.",
-            metrics: [
-              { label: "Downlink (4×4 MIMO)", value: "326.4 Mbps", weight: 1.0 },
-              { label: "Uplink (1×2 SIMO)", value: "86.4 Mbps", weight: 0.58 },
-              { label: "Modulation Depth", value: "64QAM fixed", weight: 0.78 }
-            ],
-            viz: { bandwidth: 0.75, mimo: 1.0, latency: 0.35 }
-          },
-          bandwidth: {
-            title: "Scalable Channel Bandwidths",
-            lead: "LTE slots scale from 1.4 MHz micro-cells to 20 MHz wide channels in both uplink and downlink.",
-            body: "The OFDM numerology adjusts FFT sizes and subcarrier spacing so that small cells sip spectrum while wide-area deployments flood the air with capacity without retuning the radio stack.",
-            metrics: [
-              { label: "Narrowband Entry", value: "1.4 MHz", weight: 0.32 },
-              { label: "Urban Macro Sweet Spot", value: "10 MHz", weight: 0.68 },
-              { label: "Spectrum Ceiling", value: "20 MHz", weight: 1.0 }
-            ],
-            viz: { bandwidth: 1.0, mimo: 0.82, latency: 0.45 }
-          },
-          efficiency: {
-            title: "Spectral Efficiency Gains",
-            lead: "Downlink achieves three to four times the Release 6 HSPA efficiency; uplink gains two to three times.",
-            body: "Orthogonal subcarriers and multi-user scheduling keep the spectrum busy, while link adaptation and hybrid ARQ trim retransmissions so the delivered bits per Hz stay high.",
-            metrics: [
-              { label: "Downlink Boost", value: "×3–4 vs. HSPA", weight: 0.9 },
-              { label: "Uplink Boost", value: "×2–3 vs. HSPA", weight: 0.75 },
-              { label: "Reuse Factor", value: "Close to 1", weight: 0.6 }
-            ],
-            viz: { bandwidth: 0.88, mimo: 0.94, latency: 0.4 }
-          },
-          latency: {
-            title: "Low-Latency Frame Design",
-            lead: "Short TTI intervals and lean control signaling keep one-way IP latency under 5 ms for small packets.",
-            body: "A 1 ms subframe grid lets the scheduler respond rapidly, while reduced protocol stack processing and synchronized uplink control paths ensure interactive applications feel immediate.",
-            metrics: [
-              { label: "Subframe Duration", value: "1 ms", weight: 0.7 },
-              { label: "HARQ RTT", value: "≈ 8 ms", weight: 0.52 },
-              { label: "Target IP Latency", value: "< 5 ms", weight: 0.95 }
-            ],
-            viz: { bandwidth: 0.68, mimo: 0.78, latency: 0.14 }
-          },
-          mobility: {
-            title: "Mobility Provenance",
-            lead: "Optimized for 0–15 km/h, maintains high performance up to 120 km/h, and extends service up to 350 km/h (500 km/h under study).",
-            body: "Pilot density and Doppler tracking scale with speed so OFDM symbols remain orthogonal—from pedestrians weaving through a city to high-speed trains slicing through the countryside.",
-            metrics: [
-              { label: "Sweet Spot", value: "0–15 km/h", weight: 0.28 },
-              { label: "High Performance", value: "≤ 120 km/h", weight: 0.62 },
-              { label: "Operational Envelope", value: "≤ 350 km/h", weight: 0.9 }
-            ],
-            viz: { bandwidth: 0.82, mimo: 0.9, latency: 0.62 }
-          },
-          compatibility: {
-            title: "Compatibility & Evolution",
-            lead: "The air interface coexists with legacy systems while paving the path to an all-IP core.",
-            body: "LTE maintains backward connectivity through dual-mode deployments and interoperable handovers, yet its OFDM-based design primes networks for the eventual shift to an all-IP, all-broadband landscape.",
-            metrics: [
-              { label: "Legacy Coexistence", value: "HSPA & GSM", weight: 0.7 },
-              { label: "Core Network", value: "All-IP evolution", weight: 0.85 },
-              { label: "Spectrum Flexibility", value: "FDD focus", weight: 0.6 }
-            ],
-            viz: { bandwidth: 0.7, mimo: 0.72, latency: 0.5 }
-          }
-        };
+<script>
+(function () {
 
-        const canvas = document.getElementById("ofdmCanvas");
-        const ctx = canvas.getContext("2d");
-        const dpr = window.devicePixelRatio || 1;
-        const TAU = Math.PI * 2;
-        let width = 0;
-        let height = 0;
-        let time = 0;
+  // ── Requirements ──────────────────────────────────────────────────────────
+  const REQS = {
+    throughput: {
+      title: "Peak Data Rates",
+      lead: "Downlink reaches 326.4 Mbps with 4×4 MIMO and 64QAM; uplink peaks at 86.4 Mbps with a single transmit antenna.",
+      body: "Every available resource element carries 6 bits per symbol (64QAM). Four spatial MIMO layers then multiply that aggregate, delivering broadband-class throughput over a radio link. The grid shows a fully-loaded channel with 64QAM across all resource blocks.",
+      metrics: [
+        { label: "Downlink (4×4 MIMO, 64QAM)", value: "326.4 Mbps", w: 1.00 },
+        { label: "Uplink (1×2 SIMO, 64QAM)",   value: " 86.4 Mbps", w: 0.26 },
+        { label: "Bits per symbol (64QAM)",     value: "6 bits",     w: 0.72 }
+      ],
+      mode: "throughput"
+    },
+    bandwidth: {
+      title: "Scalable Channel Bandwidths",
+      lead: "LTE operates in six channel widths from 1.4 MHz (6 RBs) to 20 MHz (100 RBs), all sharing the same 15 kHz subcarrier spacing.",
+      body: "Only the FFT size and the count of active resource blocks change between deployments. A single chipset therefore serves everything from a narrow rural carrier to a wide urban one — the grid contracts or expands while the subcarrier structure stays identical.",
+      metrics: [
+        { label: "1.4 MHz →   6 RBs",  value: " 72 active subcarriers",  w: 0.06 },
+        { label: "10 MHz →  50 RBs",  value: "600 active subcarriers",  w: 0.50 },
+        { label: "20 MHz → 100 RBs", value: "1200 active subcarriers", w: 1.00 }
+      ],
+      mode: "bandwidth"
+    },
+    efficiency: {
+      title: "Spectral Efficiency",
+      lead: "LTE achieves 3 – 4× the spectral efficiency of Release 6 HSPA in the downlink, and 2 – 3× in the uplink.",
+      body: "Orthogonal subcarriers eliminate inter-carrier interference, allowing frequency reuse close to 1. Link adaptation continuously selects the highest modulation and coding scheme (MCS) the channel can support, squeezing out every available bit per hertz.",
+      metrics: [
+        { label: "DL peak efficiency", value: "16.3 bps/Hz", w: 0.95 },
+        { label: "UL peak efficiency", value: " 4.3 bps/Hz", w: 0.25 },
+        { label: "Gain vs. HSPA R6",  value: "×3 – 4 DL",  w: 0.85 }
+      ],
+      mode: "efficiency"
+    },
+    latency: {
+      title: "Low Latency",
+      lead: "The 1 ms subframe is the minimum scheduling interval (TTI), targeting one-way IP latency below 5 ms.",
+      body: "A short TTI lets the scheduler respond rapidly to changing channel conditions and queue states. Fast HARQ retransmission (≈8 ms round-trip) further limits the impact of errors, keeping interactive traffic — voice, gaming, control signalling — near real-time.",
+      metrics: [
+        { label: "TTI (subframe duration)", value: "1 ms",   w: 0.92 },
+        { label: "HARQ round-trip time",    value: "≈ 8 ms", w: 0.60 },
+        { label: "Target one-way IP delay", value: "< 5 ms", w: 1.00 }
+      ],
+      mode: "latency"
+    },
+    mobility: {
+      title: "Mobility Support",
+      lead: "Optimised for 0 – 15 km/h, full performance to 120 km/h, extended service to 350 km/h.",
+      body: "Reference signals (pilots) are scattered across the grid at fixed, known time-frequency positions. The receiver uses them to estimate the channel at every resource element. At higher speeds, Doppler shifts compress the coherence time, so pilot density must be sufficient to track the channel before it changes.",
+      metrics: [
+        { label: "Optimal range",    value: "0 – 15 km/h",  w: 0.15 },
+        { label: "High performance", value: "≤ 120 km/h",   w: 0.50 },
+        { label: "Max operational",  value: "≤ 350 km/h",   w: 1.00 }
+      ],
+      mode: "mobility"
+    },
+    compatibility: {
+      title: "Backward Compatibility & Evolution",
+      lead: "LTE coexists with GSM and HSPA networks while migrating the core to an all-IP architecture.",
+      body: "Guard bands at both edges of each LTE carrier prevent leakage into adjacent channels occupied by legacy systems. Dual-mode devices and standardised handover procedures keep connections alive across generations, while the Evolved Packet Core (EPC) removes circuit-switched bottlenecks entirely.",
+      metrics: [
+        { label: "Legacy coexistence", value: "GSM / HSPA",   w: 0.72 },
+        { label: "Core network",       value: "All-IP (EPC)", w: 0.88 },
+        { label: "Duplex modes",       value: "FDD & TDD",    w: 0.60 }
+      ],
+      mode: "compatibility"
+    }
+  };
 
-        const columns = 12;
-        const minRows = 8;
-        const maxRows = 28;
+  // ── Canvas resource grid ──────────────────────────────────────────────────
+  const canvas = document.getElementById("rg");
+  const ctx    = canvas.getContext("2d");
+  const dpr    = window.devicePixelRatio || 1;
 
-        const cellSeeds = Array.from({ length: columns }, () =>
-          Array.from({ length: maxRows }, () => ({
-            offset: Math.random() * TAU,
-            speed: 0.5 + Math.random() * 0.8,
-            jitter: Math.random()
-          }))
-        );
+  // Grid dimensions: time on X (14 symbols), frequency on Y (6 RBs = 72 subcarriers)
+  const SYM  = 14;   // symbol intervals per subframe (time, X axis)
+  const SUB  = 72;   // subcarriers shown        (frequency, Y axis)
+  const RB_H = 12;   // subcarriers per RB
+  const SLOT = 7;    // symbols per slot
 
-        const layerOffsets = Array.from({ length: 4 }, () => Math.random() * TAU);
+  // Stable per-cell pseudo-random value
+  function rnd(col, row) {
+    const v = Math.sin(col * 127.1 + row * 311.7) * 43758.5453;
+    return v - Math.floor(v);
+  }
 
-        const state = {
-          bandwidth: 0.8,
-          bandwidthTarget: 0.8,
-          mimo: 0.85,
-          mimoTarget: 0.85,
-          latency: 0.4,
-          latencyTarget: 0.4
-        };
+  // LTE Cell-specific Reference Signal (CRS) pattern, 2 antenna ports, v_shift = 0
+  // Port 0: l = 0, 4 within each slot  →  subcarrier offset (col%6) === 0
+  // Port 1: l = 0, 4 within each slot  →  subcarrier offset (col%6) === 3
+  function isRS(sym, sub) {
+    const l = sym % SLOT;
+    if (l !== 0 && l !== 4) return false;
+    const s = sub % 6;
+    return s === 0 || s === 3;
+  }
 
-        function resizeCanvas() {
-          const rect = canvas.getBoundingClientRect();
-          width = rect.width;
-          height = rect.height;
-          canvas.width = rect.width * dpr;
-          canvas.height = rect.height * dpr;
-          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  let mode = "throughput";
+  let t    = 0;
+
+  function draw() {
+    const W = canvas.width  / dpr;
+    const H = canvas.height / dpr;
+
+    ctx.clearRect(0, 0, W, H);
+    ctx.fillStyle = "#07111f";
+    ctx.fillRect(0, 0, W, H);
+
+    // Margins for axis labels
+    const ml = 38, mt = 18, mr = 8, mb = 22;
+    const gW = W - ml - mr;
+    const gH = H - mt - mb;
+    const cW = gW / SYM;   // cell width  (one symbol)
+    const cH = gH / SUB;   // cell height (one subcarrier)
+
+    // ── Draw cells ────────────────────────────────────────────────────────
+    for (let sym = 0; sym < SYM; sym++) {
+      for (let sub = 0; sub < SUB; sub++) {
+        const x = ml + sym * cW;
+        const y = mt + (SUB - 1 - sub) * cH;  // sub 0 at bottom
+        const r = rnd(sym, sub);
+
+        if (isRS(sym, sub)) {
+          // Reference signal — amber, always visible
+          const bright = mode === "mobility" ? 1.0 : 0.82;
+          ctx.fillStyle = `rgba(251,191,36,${bright})`;
+          ctx.fillRect(x + 0.5, y + 0.5, cW - 1, cH - 1);
+          continue;
         }
 
-        window.addEventListener("resize", resizeCanvas);
-        resizeCanvas();
+        let fill;
+        switch (mode) {
+          case "throughput":
+            // All 64QAM, slight animated shimmer
+            fill = `rgba(124,58,237,${0.72 + Math.sin(t + sym * 0.28 + sub * 0.18) * 0.10})`;
+            break;
 
-        function drawScene() {
-          ctx.clearRect(0, 0, width, height);
+          case "bandwidth": {
+            // Only 2 central RBs active (simulates 1.4 MHz narrow deployment)
+            const rbIdx = Math.floor(sub / RB_H); // 0–5
+            fill = (rbIdx === 2 || rbIdx === 3)
+              ? `rgba(59,130,246,0.78)`
+              : "rgba(14,24,44,0.85)";
+            break;
+          }
 
-          state.bandwidth += (state.bandwidthTarget - state.bandwidth) * 0.06;
-          state.mimo += (state.mimoTarget - state.mimo) * 0.05;
-          state.latency += (state.latencyTarget - state.latency) * 0.05;
+          case "efficiency":
+            // Mix of 16QAM and 64QAM, densely packed
+            fill = r < 0.52
+              ? "rgba(124,58,237,0.80)"   // 64QAM
+              : "rgba(5,150,105,0.78)";   // 16QAM
+            break;
 
-          const background = ctx.createLinearGradient(0, 0, 0, height);
-          background.addColorStop(0, "rgba(10, 18, 33, 0.96)");
-          background.addColorStop(0.52, "rgba(17, 45, 92, " + (0.55 + state.bandwidth * 0.18) + ")");
-          background.addColorStop(1, "rgba(8, 30, 60, 0.95)");
-          ctx.fillStyle = background;
-          ctx.fillRect(0, 0, width, height);
+          case "latency":
+            // Normal allocation; TTI border pulsed separately
+            fill = r < 0.38
+              ? "rgba(124,58,237,0.70)"
+              : r < 0.68
+              ? "rgba(5,150,105,0.70)"
+              : "rgba(59,130,246,0.70)";
+            break;
 
-          const colCount = columns;
-          const rowCount = Math.round(minRows + state.bandwidth * (maxRows - minRows));
-          const gridWidth = width * 0.76;
-          const gridHeight = height * (0.54 + state.bandwidth * 0.08);
-          const gridX = width * 0.12;
-          const gridY = height * 0.16;
-          const cellWidth = gridWidth / colCount;
-          const cellHeight = gridHeight / rowCount;
+          case "mobility":
+            // QPSK / 16QAM mix; RS will stand out brightly
+            fill = r < 0.55
+              ? "rgba(5,150,105,0.62)"
+              : "rgba(59,130,246,0.62)";
+            break;
 
-          const bandGradient = ctx.createLinearGradient(gridX, gridY, gridX, gridY + gridHeight);
-          bandGradient.addColorStop(0, "rgba(96, 165, 250, " + (0.08 + state.bandwidth * 0.1) + ")");
-          bandGradient.addColorStop(1, "rgba(37, 99, 235, " + (0.16 + state.bandwidth * 0.16) + ")");
-          ctx.save();
-          ctx.globalAlpha = 0.35 + state.bandwidth * 0.25;
-          ctx.fillStyle = bandGradient;
-          ctx.fillRect(gridX, gridY, gridWidth, gridHeight);
-          ctx.restore();
-
-          for (let col = 0; col < colCount; col++) {
-            for (let row = 0; row < rowCount; row++) {
-              const seed = cellSeeds[col][row];
-              const modulation = Math.sin(time * seed.speed + seed.offset + row * 0.24 + col * 0.32);
-              const pulse = Math.sin(time * (1.6 + state.mimo * 0.6) + col * 0.7) * 0.32;
-              const intensity = Math.max(
-                0,
-                Math.min(
-                  1,
-                  0.34 + state.mimo * 0.46 + seed.jitter * 0.24 + modulation * 0.25 + pulse * 0.14
-                )
-              );
-              const x = gridX + col * cellWidth;
-              const y = gridY + (rowCount - row - 1) * cellHeight;
-              const alpha = 0.22 + intensity * 0.55;
-              const gradient = ctx.createLinearGradient(x, y, x + cellWidth, y + cellHeight);
-              gradient.addColorStop(0, "rgba(129, 199, 245, " + alpha + ")");
-              gradient.addColorStop(1, "rgba(59, 130, 246, " + (alpha + 0.12) + ")");
-              ctx.fillStyle = gradient;
-              ctx.fillRect(x + cellWidth * 0.12, y + cellHeight * 0.15, cellWidth * 0.76, cellHeight * 0.7);
+          case "compatibility": {
+            // Guard bands at top/bottom edges of the shown spectrum
+            const guardSubs = 4;
+            if (sub < guardSubs || sub >= SUB - guardSubs) {
+              fill = "rgba(239,68,68,0.22)";
+            } else {
+              fill = r < 0.50
+                ? "rgba(59,130,246,0.72)"
+                : "rgba(5,150,105,0.70)";
             }
+            break;
           }
 
-          ctx.save();
-          ctx.strokeStyle = "rgba(148, 163, 184, 0.26)";
-          ctx.lineWidth = 1;
-          for (let r = 0; r <= rowCount; r++) {
-            const y = gridY + r * cellHeight;
-            ctx.beginPath();
-            ctx.moveTo(gridX, y);
-            ctx.lineTo(gridX + gridWidth, y);
-            ctx.stroke();
-          }
-          for (let c = 0; c <= colCount; c++) {
-            const x = gridX + c * cellWidth;
-            ctx.beginPath();
-            ctx.moveTo(x, gridY);
-            ctx.lineTo(x, gridY + gridHeight);
-            ctx.stroke();
-          }
-          ctx.restore();
-
-          ctx.save();
-          const pilotStride = Math.max(2, Math.round(rowCount / 6));
-          for (let col = 0; col < colCount; col++) {
-            for (let row = 0; row < rowCount; row += pilotStride) {
-              const x = gridX + col * cellWidth + cellWidth * (0.5 + Math.sin(time * 1.4 + col) * 0.05);
-              const y = gridY + (rowCount - row - 1) * cellHeight + cellHeight * 0.5;
-              ctx.globalAlpha = 0.4 + Math.sin(time * 2 + row * 0.4 + col) * 0.18;
-              ctx.beginPath();
-              ctx.fillStyle = "rgba(255, 255, 255, 0.72)";
-              ctx.arc(x, y, Math.min(cellWidth, cellHeight) * 0.12, 0, TAU);
-              ctx.fill();
-            }
-          }
-          ctx.restore();
-
-          const layerCount = 1 + Math.round(state.mimo * 3);
-          const baseLine = gridY + gridHeight * (0.24 + state.mimo * 0.12);
-          for (let layer = 0; layer < layerCount; layer++) {
-            const amplitude = gridHeight * (0.04 + state.mimo * 0.08) * ((layer + 1) / layerCount);
-            const speed = 0.82 + layer * 0.22 + state.mimo * 0.28;
-            ctx.beginPath();
-            for (let step = 0; step <= 200; step++) {
-              const t = step / 200;
-              const x = gridX + t * gridWidth;
-              const y =
-                baseLine -
-                Math.sin(time * speed + t * (4.6 + state.bandwidth * 1.7) + layerOffsets[layer]) * amplitude;
-              if (step === 0) {
-                ctx.moveTo(x, y);
-              } else {
-                ctx.lineTo(x, y);
-              }
-            }
-            const layerGradient = ctx.createLinearGradient(gridX, baseLine - amplitude, gridX, baseLine + amplitude);
-            layerGradient.addColorStop(0, "rgba(125, 211, 252, " + (0.22 + state.mimo * 0.24) + ")");
-            layerGradient.addColorStop(1, "rgba(16, 185, 129, " + (0.18 + state.mimo * 0.2) + ")");
-            ctx.strokeStyle = layerGradient;
-            ctx.globalAlpha = 0.52 + (layerCount - layer - 1) * 0.12;
-            ctx.lineWidth = 1.6 + (layerCount - layer) * 0.6;
-            ctx.stroke();
-          }
-          ctx.globalAlpha = 1;
-
-          const latencyHeight = height * (0.09 + state.latency * 0.18);
-          const latencyTop = gridY + gridHeight + height * 0.06;
-          const latencyGradient = ctx.createLinearGradient(0, latencyTop, 0, latencyTop + latencyHeight);
-          latencyGradient.addColorStop(0, "rgba(245, 158, 11, " + (0.12 + state.latency * 0.26) + ")");
-          latencyGradient.addColorStop(1, "rgba(249, 115, 22, " + (0.16 + state.latency * 0.3) + ")");
-          ctx.save();
-          ctx.globalAlpha = 0.45 + state.latency * 0.25;
-          ctx.fillStyle = latencyGradient;
-          ctx.fillRect(gridX, latencyTop, gridWidth, latencyHeight);
-          ctx.restore();
-
-          const sweepWidth = gridWidth * (0.05 + state.latency * 0.18);
-          const sweepShift = (time * (0.18 + (1 - state.latency) * 0.35)) % 1;
-          const sweepCenter = gridX + sweepShift * gridWidth;
-          const sweepGradient = ctx.createLinearGradient(
-            sweepCenter - sweepWidth,
-            latencyTop,
-            sweepCenter + sweepWidth,
-            latencyTop + latencyHeight
-          );
-          sweepGradient.addColorStop(0, "rgba(253, 224, 71, 0)");
-          sweepGradient.addColorStop(0.5, "rgba(253, 224, 71, " + (0.6 - state.latency * 0.25) + ")");
-          sweepGradient.addColorStop(1, "rgba(253, 224, 71, 0)");
-          ctx.save();
-          ctx.globalAlpha = 0.58 - state.latency * 0.18;
-          ctx.fillStyle = sweepGradient;
-          ctx.fillRect(sweepCenter - sweepWidth, latencyTop, sweepWidth * 2, latencyHeight);
-          ctx.restore();
-
-          ctx.save();
-          ctx.strokeStyle = "rgba(253, 186, 116, 0.38)";
-          ctx.lineWidth = 2;
-          const burstCount = 3 + Math.round(state.latency * 3);
-          for (let i = 0; i < burstCount; i++) {
-            const phase = (time * (0.6 + state.latency * 0.3) + i * 0.33) % 1;
-            const x = gridX + phase * gridWidth;
-            ctx.beginPath();
-            ctx.moveTo(x, latencyTop);
-            ctx.lineTo(x, latencyTop + latencyHeight);
-            ctx.stroke();
-          }
-          ctx.restore();
-
-          ctx.save();
-          ctx.strokeStyle = "rgba(226, 232, 240, 0.35)";
-          ctx.lineWidth = 1.4;
-          ctx.beginPath();
-          ctx.moveTo(gridX, gridY + gridHeight);
-          ctx.lineTo(gridX + gridWidth, gridY + gridHeight);
-          ctx.stroke();
-          ctx.beginPath();
-          ctx.moveTo(gridX, gridY);
-          ctx.lineTo(gridX, latencyTop + latencyHeight);
-          ctx.stroke();
-          ctx.restore();
-
-          time += 0.016 + state.bandwidth * 0.004;
-          requestAnimationFrame(drawScene);
+          default:
+            fill = "rgba(59,130,246,0.70)";
         }
+        ctx.fillStyle = fill;
+        ctx.fillRect(x + 0.5, y + 0.5, cW - 1, cH - 1);
+      }
+    }
 
-        drawScene();
+    // ── Slot boundaries (thick horizontal dividers in time, dashed) ───────
+    ctx.save();
+    ctx.strokeStyle = "rgba(148,163,184,0.55)";
+    ctx.lineWidth   = 1.5;
+    for (let s = 0; s <= SYM / SLOT; s++) {
+      const x = ml + s * SLOT * cW;
+      ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, mt + gH); ctx.stroke();
+    }
+    // RB boundaries
+    for (let rb = 0; rb <= SUB / RB_H; rb++) {
+      const y = mt + rb * RB_H * cH;
+      ctx.beginPath(); ctx.moveTo(ml, y); ctx.lineTo(ml + gW, y); ctx.stroke();
+    }
+    ctx.restore();
 
-        const detailTitle = document.getElementById("reqTitle");
-        const detailLead = document.getElementById("reqLead");
-        const detailBody = document.getElementById("reqBody");
-        const detailMetrics = document.getElementById("reqMetrics");
-        const nodes = Array.from(document.querySelectorAll(".map-node"));
+    // ── Fine cell grid ────────────────────────────────────────────────────
+    ctx.save();
+    ctx.strokeStyle = "rgba(80,110,160,0.18)";
+    ctx.lineWidth   = 0.5;
+    for (let s = 0; s <= SYM; s++) {
+      const x = ml + s * cW;
+      ctx.beginPath(); ctx.moveTo(x, mt); ctx.lineTo(x, mt + gH); ctx.stroke();
+    }
+    for (let s = 0; s <= SUB; s++) {
+      const y = mt + s * cH;
+      ctx.beginPath(); ctx.moveTo(ml, y); ctx.lineTo(ml + gW, y); ctx.stroke();
+    }
+    ctx.restore();
 
-        function renderMetrics(metrics) {
-          const fragment = document.createDocumentFragment();
-          metrics.forEach((metric) => {
-            const wrapper = document.createElement("div");
-            wrapper.className = "metric";
+    // ── TTI pulse (latency mode) ──────────────────────────────────────────
+    if (mode === "latency") {
+      const alpha = 0.45 + Math.sin(t * 2.8) * 0.35;
+      ctx.save();
+      ctx.strokeStyle = `rgba(251,191,36,${alpha})`;
+      ctx.lineWidth   = 3;
+      ctx.strokeRect(ml + 1, mt + 1, gW - 2, gH - 2);
+      ctx.restore();
+    }
 
-            const header = document.createElement("div");
-            header.className = "metric-header";
-            const label = document.createElement("span");
-            label.textContent = metric.label;
-            const value = document.createElement("span");
-            value.textContent = metric.value;
-            header.appendChild(label);
-            header.appendChild(value);
+    // ── Guard band overlays (compatibility mode) ──────────────────────────
+    if (mode === "compatibility") {
+      const guardH = 4 * cH;
+      ctx.save();
+      ctx.fillStyle = "rgba(239,68,68,0.10)";
+      ctx.fillRect(ml, mt, gW, guardH);                  // top (high freq)
+      ctx.fillRect(ml, mt + gH - guardH, gW, guardH);    // bottom (low freq)
+      ctx.strokeStyle = "rgba(239,68,68,0.65)";
+      ctx.lineWidth   = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath(); ctx.moveTo(ml, mt + guardH);         ctx.lineTo(ml + gW, mt + guardH);         ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(ml, mt + gH - guardH);    ctx.lineTo(ml + gW, mt + gH - guardH);    ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font      = `${Math.max(8, 9)}px sans-serif`;
+      ctx.fillStyle = "rgba(239,68,68,0.80)";
+      ctx.textAlign = "center";
+      ctx.fillText("Guard band", ml + gW / 2, mt + guardH / 2 + 4);
+      ctx.fillText("Guard band", ml + gW / 2, mt + gH - guardH / 2 + 4);
+      ctx.restore();
+    }
 
-            const bar = document.createElement("div");
-            bar.className = "metric-bar";
-            const fill = document.createElement("span");
-            fill.style.transform = "scaleX(" + Math.max(0.12, Math.min(1, metric.weight)) + ")";
-            bar.appendChild(fill);
+    // ── Axis labels ───────────────────────────────────────────────────────
+    ctx.save();
+    ctx.fillStyle = "rgba(148,163,200,0.70)";
+    ctx.font      = `${Math.max(8, 9)}px sans-serif`;
 
-            wrapper.appendChild(header);
-            wrapper.appendChild(bar);
-            fragment.appendChild(wrapper);
-          });
-          detailMetrics.innerHTML = "";
-          detailMetrics.appendChild(fragment);
-        }
+    // Slot labels along top
+    ctx.textAlign = "center";
+    ctx.fillText("Slot 1 (0.5 ms)", ml + 0.5 * SLOT * cW, mt - 5);
+    ctx.fillText("Slot 2 (0.5 ms)", ml + 1.5 * SLOT * cW, mt - 5);
 
-        function activateRequirement(id) {
-          const requirement = requirements[id];
-          if (!requirement) {
-            return;
-          }
+    // RB labels on left
+    ctx.textAlign = "right";
+    for (let rb = 0; rb < SUB / RB_H; rb++) {
+      const y = mt + gH - (rb + 0.5) * RB_H * cH;
+      ctx.fillText(`RB${rb + 1}`, ml - 4, y + 4);
+    }
 
-          nodes.forEach((node) => {
-            const isActive = node.dataset.requirement === id;
-            node.classList.toggle("active", isActive);
-            node.setAttribute("aria-selected", isActive ? "true" : "false");
-          });
+    // Bottom time label
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(148,163,200,0.50)";
+    const ttiBrightness = mode === "latency"
+      ? 0.8 + Math.sin(t * 2.8) * 0.2
+      : 0.50;
+    ctx.fillStyle = `rgba(${mode === "latency" ? "251,191,36" : "148,163,200"},${ttiBrightness})`;
+    ctx.fillText("← 14 symbol intervals (1 ms TTI) →", ml + gW / 2, mt + gH + mb - 5);
 
-          detailTitle.textContent = requirement.title;
-          detailLead.textContent = requirement.lead;
-          detailBody.textContent = requirement.body;
-          renderMetrics(requirement.metrics);
+    ctx.restore();
 
-          state.bandwidthTarget = requirement.viz.bandwidth;
-          state.mimoTarget = requirement.viz.mimo;
-          state.latencyTarget = requirement.viz.latency;
-        }
+    t += 0.018;
+    requestAnimationFrame(draw);
+  }
 
-        nodes.forEach((node) => {
-          node.addEventListener("click", () => {
-            activateRequirement(node.dataset.requirement);
-          });
-        });
+  function resize() {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width  = rect.width  * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  new ResizeObserver(resize).observe(canvas.parentElement);
+  resize();
+  draw();
 
-        activateRequirement("data");
-      })();
-    </script>
-  </body>
+  // ── Requirements panel ────────────────────────────────────────────────────
+  const elTitle   = document.getElementById("reqTitle");
+  const elLead    = document.getElementById("reqLead");
+  const elBody    = document.getElementById("reqBody");
+  const elMetrics = document.getElementById("reqMetrics");
+  const nodes     = Array.from(document.querySelectorAll(".map-node"));
+
+  function renderMetrics(metrics) {
+    const frag = document.createDocumentFragment();
+    metrics.forEach(m => {
+      const wrap = document.createElement("div"); wrap.className = "metric";
+      const hdr  = document.createElement("div"); hdr.className  = "metric-header";
+      const lbl  = document.createElement("span"); lbl.textContent = m.label;
+      const val  = document.createElement("span"); val.textContent = m.value;
+      hdr.append(lbl, val);
+      const bar  = document.createElement("div"); bar.className = "metric-bar";
+      const fill = document.createElement("span"); fill.style.transform = `scaleX(${Math.max(0.05, m.w)})`;
+      bar.appendChild(fill);
+      wrap.append(hdr, bar);
+      frag.appendChild(wrap);
+    });
+    elMetrics.innerHTML = "";
+    elMetrics.appendChild(frag);
+  }
+
+  function activate(id) {
+    const req = REQS[id];
+    if (!req) return;
+    nodes.forEach(n => {
+      const on = n.dataset.req === id;
+      n.classList.toggle("active", on);
+      n.setAttribute("aria-selected", on ? "true" : "false");
+    });
+    elTitle.textContent = req.title;
+    elLead.textContent  = req.lead;
+    elBody.textContent  = req.body;
+    renderMetrics(req.metrics);
+    mode = req.mode;
+  }
+
+  nodes.forEach(n => n.addEventListener("click", () => activate(n.dataset.req)));
+  activate("throughput");
+
+})();
+</script>
+</body>
 </html>
