@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>2.6 OFDMA Downlink Scheduler</title>
+  <style>
+    :root{color-scheme:light dark;--ink:#172033;--muted:#607086;--panel:#fff;--soft:#f3f7fc;--line:#d8e2ef;--blue:#2563eb;--red:#dc2626;--green:#16a34a;--pilot:#d97706;--guard:#94a3b8}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Arial,sans-serif;color:var(--ink);background:linear-gradient(180deg,#eef5ff,#f8fafc 46%,#edf4fb)}
+    @media(prefers-color-scheme:dark){:root{--ink:#e7edf8;--muted:#a8b5c8;--panel:#101827;--soft:#0c1422;--line:#263348}body{background:linear-gradient(180deg,#0b1220,#111a2a 52%,#0b1220)}}
+    .page{max-width:1220px;margin:auto;padding:48px 24px 80px;display:grid;gap:24px}
+    h1,h2,h3,p{margin:0}.eyebrow{color:var(--blue);font-size:.82rem;font-weight:900;letter-spacing:.08em;text-transform:uppercase}
+    h1{max-width:980px;font-size:clamp(2.1rem,4vw,4.35rem);line-height:1.04;letter-spacing:0}
+    header{display:grid;gap:14px} header p,.copy p,.phone p{color:var(--muted);line-height:1.68;font-size:1rem}
+    .section{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:clamp(20px,3vw,34px)}
+    .layout{display:grid;grid-template-columns:minmax(430px,1.1fr) minmax(360px,.9fr);gap:24px;align-items:start}
+    .arena{position:relative;min-height:520px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:linear-gradient(90deg,rgba(255,255,255,.72) 0 50%,rgba(100,116,139,.18) 50% 100%)}
+    @media(prefers-color-scheme:dark){.arena{background:linear-gradient(90deg,rgba(15,23,42,.46) 0 50%,rgba(148,163,184,.12) 50% 100%)}}
+    .shade-label{position:absolute;right:18px;top:14px;color:var(--muted);font-weight:800;font-size:.82rem;text-transform:uppercase;letter-spacing:.06em}
+    .antenna{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:92px;height:92px;border-radius:50%;background:var(--panel);border:3px solid var(--line);display:grid;place-items:center;font-weight:900;z-index:4;box-shadow:0 18px 48px rgba(37,99,235,.18)}
+    .ring{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);border:1px dashed rgba(37,99,235,.28);border-radius:50%;pointer-events:none}.r1{width:190px;height:190px}.r2{width:330px;height:330px}.r3{width:470px;height:470px}
+    .phone{position:absolute;width:86px;border:2px solid currentColor;border-radius:8px;background:var(--panel);padding:8px;cursor:grab;user-select:none;z-index:5;box-shadow:0 14px 34px rgba(15,23,42,.12)}
+    .phone:active{cursor:grabbing}.phone h3{font-size:.9rem;margin-bottom:4px}.phone p{font-size:.74rem;line-height:1.3}.phone .bar{height:7px;border-radius:999px;background:rgba(100,116,139,.18);overflow:hidden;margin-top:7px}.phone .fill{height:100%;width:50%;background:currentColor}
+    .u0{color:var(--blue)}.u1{color:var(--red)}.u2{color:var(--green)}
+    .side{display:grid;gap:18px}.copy{display:grid;gap:12px;max-width:900px}.copy h2{font-size:1.45rem}
+    .grid-card{border:1px solid var(--line);border-radius:8px;background:var(--soft);padding:16px;display:grid;gap:14px}
+    .control-strip{border:1px solid var(--line);border-radius:8px;background:var(--panel);padding:14px;display:grid;gap:10px}
+    .control-strip h3{font-size:.86rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .grants{display:grid;gap:8px}
+    .grant{border-left:4px solid currentColor;border-radius:0 8px 8px 0;background:rgba(100,116,139,.1);padding:9px 10px;color:var(--muted);font-size:.86rem;line-height:1.35}
+    .grant strong{color:var(--ink)}
+    .tile-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+    .tile{aspect-ratio:1;border-radius:5px;border:1px solid var(--line);background:rgba(148,163,184,.22);display:grid;place-items:center;font-size:.7rem;font-weight:900;color:rgba(15,23,42,.62)}
+    @media(prefers-color-scheme:dark){.tile{color:rgba(231,237,248,.7)}}
+    .tile.data{color:#fff}.tile.pilot{background:rgba(217,119,6,.75);color:#fff}.tile.guard{background:rgba(148,163,184,.42)}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.stat{border:1px solid var(--line);border-radius:8px;padding:12px;background:var(--panel)}.stat strong{display:block;font-size:1.35rem}.stat span{color:var(--muted);font-size:.82rem}
+    .legend{display:flex;flex-wrap:wrap;gap:12px;color:var(--muted);font-size:.86rem}.legend span{display:inline-flex;gap:6px;align-items:center}.sw{width:14px;height:14px;border-radius:4px;display:inline-block}
+    .takeaway{border-left:4px solid var(--blue);border-radius:0 8px 8px 0;background:rgba(37,99,235,.08);padding:13px 15px;color:var(--muted);line-height:1.55;font-weight:700}
+    @media(max-width:950px){.layout{grid-template-columns:1fr}.arena{min-height:480px}.stats{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <p class="eyebrow">2.6 OFDM/OFDMA Downlink</p>
+    <h1>OFDMA is how the base station shares the downlink grid between phones</h1>
+    <p>OFDM gives us a grid of subcarrier-like tiles. OFDMA turns that grid into a shared downlink: each phone hears the same wide signal, but the scheduler assigns different data tiles to different phones according to channel quality.</p>
+  </header>
+
+  <section class="section">
+    <div class="copy">
+      <h2>Simplified downlink grid</h2>
+      <p>This demo uses a simplified 64-tile OFDM grid. Only 48 tiles carry user data; the remaining tiles represent pilot/reference, guard, and control overhead.</p>
+      <p>Before a phone decodes the data grid, it receives a scheduling grant: a short control instruction that says which assigned data tiles to read and which modulation to expect.</p>
+      <p>Drag the phones. Distance from the base station lowers channel quality. The gray half adds a shadowing penalty, so two phones at the same radius can still receive different allocations.</p>
+    </div>
+    <div class="layout" style="margin-top:22px">
+      <div class="side">
+        <div class="arena" id="arena">
+          <div class="shade-label">Weak coverage / shadowing zone</div>
+          <div class="ring r1"></div><div class="ring r2"></div><div class="ring r3"></div>
+          <div class="antenna">Base<br>station</div>
+          <div class="phone u0" data-user="0" style="left:70px;top:90px"><h3>Phone A</h3><p></p><div class="bar"><div class="fill"></div></div></div>
+          <div class="phone u1" data-user="1" style="left:390px;top:78px"><h3>Phone B</h3><p></p><div class="bar"><div class="fill"></div></div></div>
+          <div class="phone u2" data-user="2" style="left:250px;top:340px"><h3>Phone C</h3><p></p><div class="bar"><div class="fill"></div></div></div>
+        </div>
+        <div class="stats" id="stats"></div>
+      </div>
+
+      <div class="side">
+        <div class="grid-card">
+        <div class="control-strip">
+          <h3>Downlink control / scheduling grants</h3>
+          <div class="grants" id="grants"></div>
+        </div>
+        <div class="tile-grid" id="grid"></div>
+        <div class="legend">
+          <span><i class="sw" style="background:#2563eb"></i>Phone A</span>
+          <span><i class="sw" style="background:#dc2626"></i>Phone B</span>
+          <span><i class="sw" style="background:#16a34a"></i>Phone C</span>
+          <span><i class="sw" style="background:#d97706"></i>Pilot/reference</span>
+          <span><i class="sw" style="background:#94a3b8"></i>Guard/control</span>
+        </div>
+      </div>
+    </div>
+    </div>
+    <div class="takeaway" style="margin-top:22px">OFDM builds the tiles. OFDMA assigns the data tiles. The downlink control message tells each phone which assigned tiles to decode and which modulation setting to use.</div>
+  </section>
+</main>
+
+<script>
+const arena=document.getElementById("arena"),grid=document.getElementById("grid"),stats=document.getElementById("stats"),grants=document.getElementById("grants");
+const colors=["#2563eb","#dc2626","#16a34a"],names=["Phone A","Phone B","Phone C"];
+const DATA=[...Array(64).keys()].filter(i=>![0,7,24,31,32,39,56,63,27,28,35,36,3,21,42,60].includes(i)).slice(0,48);
+const PILOTS=[3,21,42,60],SPECIAL=[0,7,24,31,32,39,56,63,27,28,35,36];
+let dragging=null;
+function makeGrid(){grid.innerHTML="";for(let i=0;i<64;i++){const t=document.createElement("div");t.className="tile";t.dataset.i=i;if(PILOTS.includes(i)){t.classList.add("pilot");t.textContent="P"}else if(SPECIAL.includes(i)){t.classList.add("guard");t.textContent=i===27||i===28||i===35||i===36?"DC":"G"}grid.appendChild(t)}}
+function phoneQuality(el){const a=arena.getBoundingClientRect(),r=el.getBoundingClientRect(),cx=a.width/2,cy=a.height/2,px=r.left-a.left+r.width/2,py=r.top-a.top+r.height/2;const d=Math.hypot(px-cx,py-cy),max=Math.hypot(a.width/2,a.height/2);let q=1-d/max;if(px>a.width/2)q-=.25;return Math.max(.08,Math.min(1,q))}
+function modulation(q){if(q>.68)return["64QAM",6];if(q>.38)return["16QAM",4];return["QPSK",2]}
+function allocate(){const phones=[...document.querySelectorAll(".phone")];const qs=phones.map(phoneQuality),weights=qs.map(q=>Math.pow(q,1.45)),sum=weights.reduce((a,b)=>a+b,0);let counts=weights.map(w=>Math.max(3,Math.round(w/sum*48)));while(counts.reduce((a,b)=>a+b,0)>48){counts[counts.indexOf(Math.max(...counts))]--}while(counts.reduce((a,b)=>a+b,0)<48){counts[weights.indexOf(Math.max(...weights))]++}
+  document.querySelectorAll(".tile").forEach(t=>{if(t.classList.contains("data")){t.style.background="";t.textContent=""}t.classList.remove("data")});
+  let p=0;counts.forEach((count,u)=>{for(let k=0;k<count;k++){const tile=grid.children[DATA[p++]];tile.classList.add("data");tile.style.background=colors[u];tile.textContent=u+1}});
+  stats.innerHTML="";grants.innerHTML="";let start=1;phones.forEach((el,u)=>{const q=qs[u],m=modulation(q),end=start+counts[u]-1;el.querySelector("p").textContent=`CQI ${(q*100).toFixed(0)}% · ${m[0]}`;el.querySelector(".fill").style.width=`${q*100}%`;const card=document.createElement("div");card.className="stat";card.innerHTML=`<span>${names[u]}</span><strong style="color:${colors[u]}">${counts[u]} tiles</strong><span>${m[0]} · ${m[1]} bits/tile</span>`;stats.appendChild(card);const grant=document.createElement("div");grant.className="grant";grant.style.color=colors[u];grant.innerHTML=`<strong>${names[u]}</strong>: decode data tiles ${start}-${end} using ${m[0]} (${m[1]} bits/tile).`;grants.appendChild(grant);start=end+1})}
+function movePhone(el,x,y){const a=arena.getBoundingClientRect();const w=el.offsetWidth,h=el.offsetHeight;el.style.left=Math.max(8,Math.min(a.width-w-8,x))+"px";el.style.top=Math.max(8,Math.min(a.height-h-8,y))+"px";allocate()}
+document.querySelectorAll(".phone").forEach(el=>{el.addEventListener("pointerdown",e=>{dragging={el,dx:e.offsetX,dy:e.offsetY};el.setPointerCapture(e.pointerId)});el.addEventListener("pointermove",e=>{if(dragging&&dragging.el===el){const a=arena.getBoundingClientRect();movePhone(el,e.clientX-a.left-dragging.dx,e.clientY-a.top-dragging.dy)}});el.addEventListener("pointerup",()=>dragging=null)});
+window.addEventListener("resize",allocate);makeGrid();allocate();
+</script>
+</body>
+</html>

@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>2.3 LTE Duplexing - Uplink and Downlink</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --ink: #172033;
+      --muted: #607086;
+      --panel: #ffffff;
+      --soft: #f3f7fc;
+      --line: #d8e2ef;
+      --down: #2563eb;
+      --up: #16a34a;
+      --guard: #94a3b8;
+      --warn: #d97706;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #eef5ff, #f8fafc 48%, #edf4fb);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --ink: #e7edf8;
+        --muted: #a8b5c8;
+        --panel: #101827;
+        --soft: #0c1422;
+        --line: #263348;
+      }
+
+      body { background: linear-gradient(180deg, #0b1220, #111a2a 52%, #0b1220); }
+    }
+
+    .page {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 48px 24px 78px;
+      display: grid;
+      gap: 26px;
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    header {
+      display: grid;
+      gap: 14px;
+    }
+
+    .eyebrow {
+      color: var(--down);
+      font-size: 0.82rem;
+      font-weight: 900;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      max-width: 980px;
+      font-size: clamp(2.1rem, 4vw, 4.4rem);
+      line-height: 1.04;
+      letter-spacing: 0;
+    }
+
+    header p, .copy p, .card p {
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    .section {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      padding: clamp(20px, 3vw, 34px);
+    }
+
+    .direction-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .direction-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+      background: var(--soft);
+      display: grid;
+      gap: 14px;
+    }
+
+    .direction-row {
+      display: grid;
+      grid-template-columns: 92px 1fr 92px;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .node {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 12px 10px;
+      text-align: center;
+      font-weight: 900;
+      background: var(--panel);
+      min-height: 54px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .arrow {
+      height: 14px;
+      position: relative;
+      border-radius: 999px;
+      background: currentColor;
+      opacity: 0.9;
+    }
+
+    .arrow::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 16px;
+      height: 16px;
+      border-top: 5px solid currentColor;
+      border-right: 5px solid currentColor;
+    }
+
+    .arrow.down { color: var(--down); }
+    .arrow.up { color: var(--up); }
+    .arrow.down::after { right: -4px; transform: translateY(-50%) rotate(45deg); }
+    .arrow.up::after { left: -4px; transform: translateY(-50%) rotate(225deg); }
+
+    .duplex-layout {
+      display: grid;
+      gap: 22px;
+    }
+
+    .mode-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .mode-tabs button {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      color: inherit;
+      font: inherit;
+      text-align: left;
+      padding: 16px;
+      cursor: pointer;
+    }
+
+    .mode-tabs button strong { display: block; font-size: 1rem; }
+    .mode-tabs button span { display: block; margin-top: 5px; color: var(--muted); font-size: 0.86rem; line-height: 1.35; }
+    .mode-tabs button.active { border-color: var(--down); box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.14); }
+
+    .plot-wrap {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      padding: 18px;
+      overflow: hidden;
+    }
+
+    svg {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+
+    .axis { stroke: var(--muted); stroke-width: 2; opacity: 0.75; }
+    .grid-line { stroke: var(--line); stroke-width: 1; }
+    .axis-label { fill: var(--muted); font-size: 18px; font-weight: 800; }
+    .band-label { fill: var(--ink); font-size: 17px; font-weight: 900; }
+    .wave { fill: none; stroke-width: 7; stroke-linecap: round; stroke-linejoin: round; }
+    .wave.down { stroke: var(--down); }
+    .wave.up { stroke: var(--up); }
+    .moving-wave {
+      fill: none;
+      stroke-width: 7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .moving-wave.down { stroke: var(--down); }
+    .moving-wave.up { stroke: var(--up); }
+
+    .tdd-segment {
+      fill: none;
+      stroke-width: 9;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .tdd-segment.down { stroke: var(--down); }
+    .tdd-segment.up { stroke: var(--up); }
+    .tdd-segment.guard { stroke: var(--guard); stroke-width: 7; opacity: 0.76; stroke-dasharray: 8 10; }
+
+    .slot { rx: 8; ry: 8; opacity: 0.92; }
+    .slot.down { fill: rgba(37, 99, 235, 0.82); }
+    .slot.up { fill: rgba(22, 163, 74, 0.82); }
+    .slot.guard { fill: rgba(148, 163, 184, 0.62); }
+    .slot-text { fill: white; font-size: 14px; font-weight: 900; text-anchor: middle; dominant-baseline: middle; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .legend span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .sw {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .takeaway {
+      border-left: 4px solid var(--down);
+      border-radius: 0 8px 8px 0;
+      background: rgba(37, 99, 235, 0.08);
+      padding: 13px 15px;
+      color: var(--muted);
+      line-height: 1.55;
+      font-weight: 700;
+    }
+
+    .pros-cons {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--soft);
+      padding: 18px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .card h3 {
+      font-size: 0.92rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    ul {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .bridge {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    @media (max-width: 850px) {
+      .direction-grid, .direction-row, .pros-cons, .mode-tabs { grid-template-columns: 1fr; }
+      .arrow.up::after, .arrow.down::after { right: -4px; left: auto; transform: translateY(-50%) rotate(45deg); }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header>
+      <p class="eyebrow">2.3 LTE Duplexing</p>
+      <h1>Uplink, Downlink, and how LTE keeps both directions from colliding</h1>
+      <p>
+        After OFDM and Resource Blocks, LTE still needs a basic traffic rule: the base station sends data to the phone,
+        and the phone sends data back. Duplexing decides how those two directions share radio resources.
+      </p>
+    </header>
+
+    <section class="section">
+      <div class="direction-grid">
+        <div class="direction-card">
+          <h2>Downlink</h2>
+          <div class="direction-row">
+            <div class="node">Base<br>station</div>
+            <div class="arrow down" aria-hidden="true"></div>
+            <div class="node">Phone</div>
+          </div>
+          <p>Downlink is the download direction: data, video, web pages, and control information flow from the LTE base station to the user equipment.</p>
+        </div>
+        <div class="direction-card">
+          <h2>Uplink</h2>
+          <div class="direction-row">
+            <div class="node">Base<br>station</div>
+            <div class="arrow up" aria-hidden="true"></div>
+            <div class="node">Phone</div>
+          </div>
+          <p>Uplink is the upload direction: the phone sends requests, acknowledgements, measurements, voice, and user data back to the base station.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section duplex-layout">
+      <div class="mode-tabs" role="tablist" aria-label="Duplex mode">
+        <button id="fdd-tab" class="active" type="button" data-mode="fdd">
+          <strong>FDD</strong>
+          <span>Frequency Division Duplex: same time, different frequency bands.</span>
+        </button>
+        <button id="tdd-tab" type="button" data-mode="tdd">
+          <strong>TDD</strong>
+          <span>Time Division Duplex: same frequency band, different time slots.</span>
+        </button>
+      </div>
+
+      <div class="plot-wrap">
+        <svg id="duplex-plot" viewBox="0 0 1000 480" role="img" aria-label="Time frequency duplexing plot"></svg>
+        <div class="legend">
+          <span><i class="sw" style="background:#2563eb"></i>Downlink</span>
+          <span><i class="sw" style="background:#16a34a"></i>Uplink</span>
+          <span><i class="sw" style="background:#94a3b8"></i>Guard period</span>
+        </div>
+      </div>
+
+      <div class="takeaway" id="takeaway"></div>
+
+      <div class="pros-cons">
+        <div class="card">
+          <h3>Advantages</h3>
+          <ul id="advantages"></ul>
+        </div>
+        <div class="card">
+          <h3>Limitations</h3>
+          <ul id="limitations"></ul>
+        </div>
+      </div>
+
+      <p class="bridge">
+        Duplexing answers which direction can use the radio resource. Once a resource is part of the downlink,
+        LTE can decide which phone gets which Resource Blocks. That is the setup for OFDMA in section 2.6.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    const modes = {
+      fdd: {
+        takeaway: "FDD separates directions by frequency: downlink and uplink can run at the same time because they occupy different bands.",
+        advantages: [
+          "Downlink and uplink can be active simultaneously.",
+          "Works naturally with paired spectrum allocations.",
+          "Predictable timing because each direction has its own band."
+        ],
+        limitations: [
+          "Requires two separate frequency bands.",
+          "Less flexible when traffic is asymmetric, such as heavy download and light upload.",
+          "Needs strong separation between transmit and receive bands."
+        ]
+      },
+      tdd: {
+        takeaway: "TDD separates directions by time: downlink and uplink share one band, but only one direction uses it during a given time slot.",
+        advantages: [
+          "Works with unpaired spectrum.",
+          "Can allocate more time to downlink or uplink depending on traffic demand.",
+          "Uses a single frequency band for both directions."
+        ],
+        limitations: [
+          "Directions are not active at exactly the same instant.",
+          "Needs guard periods when switching between downlink and uplink.",
+          "Requires tight synchronization to avoid interference between cells."
+        ]
+      }
+    };
+
+    const plot = document.getElementById("duplex-plot");
+    const tabs = Array.from(document.querySelectorAll("[data-mode]"));
+    const takeaway = document.getElementById("takeaway");
+    const advantages = document.getElementById("advantages");
+    const limitations = document.getElementById("limitations");
+    let activeMode = "fdd";
+    let phase = 0;
+    const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function svgEl(name, attrs = {}, text = "") {
+      const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+      Object.entries(attrs).forEach(([key, value]) => el.setAttribute(key, value));
+      if (text) el.textContent = text;
+      return el;
+    }
+
+    function sinePath(y, amp = 18, start = 110, end = 900, phase = 0) {
+      let d = "";
+      const width = end - start;
+      const cycles = width / 170;
+      for (let x = start; x <= end; x += 8) {
+        const t = (x - start) / width;
+        const yy = y + Math.sin(t * Math.PI * 2 * cycles + phase) * amp;
+        d += d ? ` L ${x.toFixed(1)} ${yy.toFixed(1)}` : `M ${x.toFixed(1)} ${yy.toFixed(1)}`;
+      }
+      return d;
+    }
+
+    function sineSegmentPath(y, amp, globalStart, globalEnd, start, end, phase = 0) {
+      let d = "";
+      const width = globalEnd - globalStart;
+      const cycles = width / 170;
+      for (let x = start; x <= end; x += 8) {
+        const t = (x - globalStart) / width;
+        const yy = y + Math.sin(t * Math.PI * 2 * cycles + phase) * amp;
+        d += d ? ` L ${x.toFixed(1)} ${yy.toFixed(1)}` : `M ${x.toFixed(1)} ${yy.toFixed(1)}`;
+      }
+      const t = (end - globalStart) / width;
+      const yy = y + Math.sin(t * Math.PI * 2 * cycles + phase) * amp;
+      d += ` L ${end.toFixed(1)} ${yy.toFixed(1)}`;
+      return d;
+    }
+
+    function drawBase() {
+      plot.innerHTML = "";
+      for (let x = 150; x <= 900; x += 150) {
+        plot.appendChild(svgEl("line", { x1: x, y1: 70, x2: x, y2: 390, class: "grid-line" }));
+      }
+      for (let y = 110; y <= 350; y += 80) {
+        plot.appendChild(svgEl("line", { x1: 90, y1: y, x2: 920, y2: y, class: "grid-line" }));
+      }
+      plot.appendChild(svgEl("line", { x1: 90, y1: 390, x2: 930, y2: 390, class: "axis" }));
+      plot.appendChild(svgEl("line", { x1: 90, y1: 390, x2: 90, y2: 55, class: "axis" }));
+      plot.appendChild(svgEl("text", { x: 490, y: 440, class: "axis-label", "text-anchor": "middle" }, "Time"));
+      plot.appendChild(svgEl("text", { x: 30, y: 230, class: "axis-label", transform: "rotate(-90 30 230)", "text-anchor": "middle" }, "Frequency"));
+    }
+
+    function drawFdd() {
+      drawBase();
+      plot.appendChild(svgEl("text", { x: 110, y: 125, class: "band-label" }, "Downlink band"));
+      plot.appendChild(svgEl("text", { x: 110, y: 305, class: "band-label" }, "Uplink band"));
+      plot.appendChild(svgEl("path", { id: "fdd-down-wave", d: sinePath(160, 18), class: "moving-wave down" }));
+      plot.appendChild(svgEl("path", { id: "fdd-up-wave", d: sinePath(320, 18), class: "moving-wave up" }));
+      plot.appendChild(svgEl("text", { x: 720, y: 92, class: "axis-label" }, "same time"));
+      plot.appendChild(svgEl("text", { x: 690, y: 260, class: "axis-label" }, "different frequencies"));
+    }
+
+    function drawTdd() {
+      drawBase();
+      plot.appendChild(svgEl("text", { x: 110, y: 165, class: "band-label" }, "Shared LTE band"));
+      const globalStart = 115;
+      const globalEnd = 915;
+      const segments = [
+        ["down", 115, 265, "DL"],
+        ["guard", 274, 306, "G"],
+        ["up", 315, 425, "UL"],
+        ["down", 435, 610, "DL"],
+        ["guard", 620, 652, "G"],
+        ["up", 660, 770, "UL"],
+        ["down", 780, 915, "DL"]
+      ];
+      segments.forEach(([kind, start, end, label]) => {
+        plot.appendChild(svgEl("path", {
+          id: `tdd-wave-${start}`,
+          d: sineSegmentPath(250, 18, globalStart, globalEnd, start, end),
+          class: `tdd-segment ${kind}`,
+          "data-start": start,
+          "data-end": end,
+          "data-global-start": globalStart,
+          "data-global-end": globalEnd
+        }));
+        plot.appendChild(svgEl("text", { x: (start + end) / 2, y: kind === "guard" ? 208 : 205, class: "band-label", "text-anchor": "middle" }, label));
+      });
+      plot.appendChild(svgEl("text", { x: 640, y: 150, class: "axis-label" }, "same frequency"));
+      plot.appendChild(svgEl("text", { x: 650, y: 340, class: "axis-label" }, "different time slots"));
+    }
+
+    function renderList(target, items) {
+      target.innerHTML = "";
+      items.forEach((item) => {
+        const li = document.createElement("li");
+        li.textContent = item;
+        target.appendChild(li);
+      });
+    }
+
+    function setMode(mode) {
+      activeMode = mode;
+      tabs.forEach((tab) => tab.classList.toggle("active", tab.dataset.mode === mode));
+      if (mode === "fdd") drawFdd();
+      else drawTdd();
+      takeaway.textContent = modes[mode].takeaway;
+      renderList(advantages, modes[mode].advantages);
+      renderList(limitations, modes[mode].limitations);
+    }
+
+    tabs.forEach((tab) => tab.addEventListener("click", () => setMode(tab.dataset.mode)));
+    setMode(activeMode);
+
+    function animate() {
+      if (!prefersReduced) {
+        phase += 0.075;
+        if (activeMode === "fdd") {
+          const down = document.getElementById("fdd-down-wave");
+          const up = document.getElementById("fdd-up-wave");
+          if (down) down.setAttribute("d", sinePath(160, 18, 110, 900, phase));
+          if (up) up.setAttribute("d", sinePath(320, 18, 110, 900, phase + Math.PI / 3));
+        } else {
+          document.querySelectorAll(".tdd-segment").forEach((segment) => {
+            const start = Number(segment.dataset.start);
+            const end = Number(segment.dataset.end);
+            const globalStart = Number(segment.dataset.globalStart);
+            const globalEnd = Number(segment.dataset.globalEnd);
+            if (Number.isFinite(start) && Number.isFinite(end) && Number.isFinite(globalStart) && Number.isFinite(globalEnd)) {
+              segment.setAttribute("d", sineSegmentPath(250, 18, globalStart, globalEnd, start, end, phase));
+            }
+          });
+        }
+      }
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

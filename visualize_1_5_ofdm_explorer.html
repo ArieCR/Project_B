@@ -1,663 +1,145 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Exploring OFDM and the Cyclic Prefix</title>
-    <style>
-      :root {
-        color-scheme: light dark;
-      }
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>1.5 OFDM Explorer</title>
+  <style>
+    :root { color-scheme: light dark; --ink:#172033; --muted:#5f6f86; --panel:#fff; --line:#d9e2ef; --blue:#2563eb; --red:#dc2626; --green:#16a34a; --amber:#d97706; --violet:#7c3aed; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:Inter,Arial,sans-serif; background:#f4f7fb; color:var(--ink); }
+    @media (prefers-color-scheme:dark) { :root { --ink:#e7edf8; --muted:#a7b4c8; --panel:#101827; --line:#263348; } body { background:#0b1220; } }
+    .page { max-width:1180px; margin:auto; padding:46px 24px 76px; display:grid; gap:26px; }
+    h1,h2,h3,p { margin:0; }
+    .eyebrow { color:var(--blue); font-size:.82rem; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
+    h1 { max-width:980px; font-size:clamp(2.2rem,4vw,4.6rem); line-height:1.04; letter-spacing:0; }
+    header { display:grid; gap:14px; }
+    header p,.copy p { color:var(--muted); line-height:1.7; font-size:1rem; }
+    .tabs { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+    button.tab { border:1px solid var(--line); border-radius:8px; background:var(--panel); color:inherit; padding:14px; text-align:left; cursor:pointer; font:inherit; }
+    .tab strong { display:block; }
+    .tab span { display:block; color:var(--muted); margin-top:4px; font-size:.84rem; line-height:1.35; }
+    .tab.active { border-color:var(--blue); box-shadow:inset 0 0 0 2px rgba(37,99,235,.14); }
+    .section { border:1px solid var(--line); border-radius:8px; background:var(--panel); padding:clamp(20px,3vw,34px); }
+    .layout { display:grid; gap:clamp(20px,3vw,30px); }
+    .copy { display:grid; gap:15px; }
+    .copy h2 { font-size:clamp(1.45rem,2.2vw,2.25rem); line-height:1.15; }
+    .key { border-left:4px solid var(--blue); background:rgba(37,99,235,.08); padding:12px 14px; border-radius:0 8px 8px 0; color:var(--muted); line-height:1.55; }
+    .slider { display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; }
+    input[type=range] { width:100%; accent-color:var(--blue); }
+    .meter { color:var(--muted); min-width:92px; text-align:right; font-size:.86rem; }
+    .stage { display:grid; gap:16px; }
+    .stage-head { display:flex; justify-content:space-between; gap:14px; align-items:center; }
+    .stage-head h3 { font-size:.95rem; text-transform:uppercase; letter-spacing:.06em; }
+    .stage-head span { color:var(--muted); font-size:.84rem; }
+    .board { display:grid; gap:12px; }
+    .flow { display:grid; grid-template-columns:1fr 86px 1.15fr; gap:12px; align-items:center; }
+    .flow-side { display:grid; gap:12px; }
+    .ofdm-flow { display:grid; grid-template-columns:1fr 72px 1.08fr 86px 1.08fr; gap:12px; align-items:center; }
+    .channel { min-height:58px; border:2px solid var(--line); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--muted); font-weight:900; letter-spacing:.08em; text-transform:uppercase; background:rgba(37,99,235,.06); position:relative; }
+    .splitter { min-height:58px; border:2px dashed rgba(37,99,235,.35); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--blue); font-weight:900; font-size:.82rem; text-align:center; text-transform:uppercase; background:rgba(37,99,235,.05); position:relative; }
+    .channel:before,.channel:after { content:""; position:absolute; top:50%; width:12px; height:12px; border-top:3px solid var(--muted); border-right:3px solid var(--muted); opacity:.65; }
+    .channel:before { left:-22px; transform:translateY(-50%) rotate(45deg); }
+    .channel:after { right:-22px; transform:translateY(-50%) rotate(45deg); }
+    .lane { position:relative; min-height:60px; border:1px solid var(--line); border-radius:8px; background:rgba(100,116,139,.1); overflow:hidden; }
+    .lane-label { position:absolute; left:10px; top:8px; color:var(--muted); font-weight:800; font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; z-index:4; }
+    .sym,.echo,.cp,.win { position:absolute; top:26px; height:22px; }
+    .sym { border-radius:5px; color:white; font-size:.72rem; font-weight:800; display:flex; align-items:center; justify-content:center; overflow:hidden; white-space:nowrap; }
+    .s0{background:var(--blue)} .s1{background:var(--green)} .s2{background:var(--violet)} .s3{background:var(--amber)}
+    .echo { border:2px solid rgba(220,38,38,.62); background:rgba(248,113,113,.62); color:#7f1d1d; border-radius:5px; font-size:.68rem; font-weight:900; display:flex; align-items:center; justify-content:center; overflow:hidden; white-space:nowrap; z-index:5; mix-blend-mode:multiply; }
+    .cp { border-radius:5px 0 0 5px; background:repeating-linear-gradient(135deg,#0ea5e9,#0ea5e9 5px,#7dd3fc 5px,#7dd3fc 10px); color:#082f49; font-weight:900; font-size:.68rem; display:flex; align-items:center; justify-content:center; }
+    .win { top:20px; bottom:8px; height:auto; border:2px solid rgba(15,118,110,.78); border-radius:6px; pointer-events:none; }
+    .legend { display:flex; flex-wrap:wrap; gap:12px; color:var(--muted); font-size:.86rem; }
+    .legend span { display:inline-flex; align-items:center; gap:6px; }
+    .sw { width:14px; height:14px; border-radius:4px; display:inline-block; }
+    .sw.echo { width:20px; background:rgba(248,113,113,.72); border:2px solid rgba(220,38,38,.72); }
+    .grid { display:grid; grid-template-columns:repeat(8,1fr); gap:6px; }
+    .grid div { min-height:30px; border-radius:5px; color:white; display:flex; align-items:center; justify-content:center; font-size:.72rem; font-weight:900; }
+    .lab { display:grid; grid-template-columns:minmax(310px,.8fr) minmax(430px,1.2fr); gap:clamp(22px,4vw,42px); }
+    .controls,.visuals { display:grid; gap:18px; }
+    .control { display:grid; gap:8px; }
+    .control label { font-size:.9rem; font-weight:800; }
+    .out,.ann { color:var(--muted); font-size:.86rem; line-height:1.45; }
+    .status { padding:12px 14px; border-radius:8px; background:rgba(220,38,38,.1); color:#991b1b; font-weight:800; line-height:1.45; }
+    .status.ok { background:rgba(22,163,74,.12); color:#166534; }
+    .status.warn { background:rgba(217,119,6,.14); color:#92400e; }
+    .pane { border:1px solid var(--line); border-radius:8px; background:rgba(100,116,139,.08); padding:16px; overflow:hidden; }
+    .pane h3 { margin-bottom:12px; color:var(--muted); font-size:.9rem; text-transform:uppercase; letter-spacing:.05em; }
+    svg { width:100%; height:210px; }
+    canvas { width:100%; border:1px solid var(--line); border-radius:8px; background:rgba(255,255,255,.62); }
+    @media (prefers-color-scheme:dark){ canvas{background:rgba(15,23,42,.7)} .status{color:#fecaca}.status.ok{color:#bbf7d0}.status.warn{color:#fed7aa} }
+    @media (max-width:900px){ .tabs,.lab,.flow,.ofdm-flow{grid-template-columns:1fr} .channel:before,.channel:after{display:none} }
+  </style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <p class="eyebrow">1.5 OFDM Explorer</p>
+    <h1>From echoes to OFDM: why a radio channel becomes many slower lanes</h1>
+    <p>A real wireless channel has memory. Reflections arrive late, smear one symbol into the next, and make a fast single-carrier stream painful to recover. This explorer builds the cure: longer OFDM symbols and a cyclic prefix that absorbs echoes before the receiver reads the useful part.</p>
+  </header>
 
-      * {
-        box-sizing: border-box;
-      }
+  <nav class="tabs">
+    <button class="tab active" data-step="single"><strong>1. Single carrier</strong><span>Short symbols suffer large relative ISI.</span></button>
+    <button class="tab" data-step="ofdm"><strong>2. OFDM</strong><span>Narrow subcarriers make symbols longer.</span></button>
+    <button class="tab" data-step="cp"><strong>3. Cyclic prefix</strong><span>The echo lands in a discarded buffer.</span></button>
+  </nav>
 
-      body {
-        margin: 0;
-        font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
-        background: linear-gradient(180deg, rgba(15, 23, 42, 0.15), rgba(15, 23, 42, 0.45));
-        color: #0f172a;
-        min-height: 100vh;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        body {
-          background: radial-gradient(circle at 20% 20%, rgba(59, 76, 105, 0.35), rgba(4, 7, 12, 0.92));
-          color: #e2e8f0;
-        }
-      }
-
-      .page {
-        max-width: 1100px;
-        margin: 0 auto;
-        padding: 54px 28px 90px;
-        display: flex;
-        flex-direction: column;
-        gap: 34px;
-      }
-
-      header h1 {
-        margin: 0;
-        font-size: clamp(2.2rem, 2.6vw + 1.4rem, 3.4rem);
-        letter-spacing: -0.025em;
-      }
-
-      header p {
-        margin: 12px 0 0;
-        max-width: 75ch;
-        font-size: 1.05rem;
-        line-height: 1.65;
-        color: rgba(15, 23, 42, 0.78);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        header p {
-          color: rgba(226, 232, 255, 0.74);
-        }
-      }
-
-      .card {
-        border-radius: 24px;
-        background: rgba(255, 255, 255, 0.88);
-        padding: 30px 34px 38px;
-        box-shadow: 0 30px 60px rgba(15, 23, 42, 0.25);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .card {
-          background: rgba(9, 14, 25, 0.88);
-          box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
-        }
-      }
-
-      .scene {
-        display: grid;
-        grid-template-columns: minmax(320px, 1fr) minmax(360px, 1.15fr);
-        gap: clamp(26px, 5vw, 48px);
-        align-items: start;
-      }
-
-      @media (max-width: 960px) {
-        .scene {
-          grid-template-columns: 1fr;
-        }
-      }
-
-      .narrative {
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
-      }
-
-      .narrative h2 {
-        margin: 0;
-        font-size: 1.12rem;
-        letter-spacing: 0.06em;
-        text-transform: uppercase;
-        color: rgba(37, 99, 235, 0.85);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .narrative h2 {
-          color: rgba(96, 165, 250, 0.82);
-        }
-      }
-
-      .narrative p {
-        margin: 0;
-        font-size: 0.98rem;
-        line-height: 1.65;
-        color: rgba(15, 23, 42, 0.78);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .narrative p {
-          color: rgba(226, 232, 255, 0.78);
-        }
-      }
-
-      .controls {
-        display: grid;
-        gap: 18px;
-        margin-top: 12px;
-      }
-
-      .control {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .control label {
-        font-size: 0.9rem;
-        font-weight: 600;
-        letter-spacing: 0.02em;
-      }
-
-      .control input[type="range"] {
-        width: 100%;
-        accent-color: #2563eb;
-      }
-
-      .control-output {
-        font-size: 0.85rem;
-        opacity: 0.7;
-        letter-spacing: 0.02em;
-      }
-
-      .status {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-        padding: 10px 12px;
-        border-radius: 12px;
-        background: rgba(37, 99, 235, 0.12);
-        color: #1e3a8a;
-        font-weight: 600;
-        font-size: 0.9rem;
-        letter-spacing: 0.02em;
-      }
-
-      .status.ok {
-        background: rgba(34, 197, 94, 0.12);
-        color: #166534;
-      }
-
-      .status.warn {
-        background: rgba(249, 115, 22, 0.15);
-        color: #9a3412;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .status {
-          background: rgba(37, 99, 235, 0.2);
-          color: rgba(191, 219, 254, 0.92);
-        }
-
-        .status.ok {
-          background: rgba(34, 197, 94, 0.22);
-          color: rgba(187, 247, 208, 0.92);
-        }
-
-        .status.warn {
-          background: rgba(249, 115, 22, 0.25);
-          color: rgba(254, 215, 170, 0.92);
-        }
-      }
-
-      .visuals {
-        display: flex;
-        flex-direction: column;
-        gap: 26px;
-      }
-
-      .pane {
-        border-radius: 18px;
-        background: rgba(226, 232, 255, 0.28);
-        padding: 18px 22px 20px;
-        position: relative;
-        overflow: hidden;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .pane {
-          background: rgba(30, 41, 59, 0.6);
-        }
-      }
-
-      .pane h3 {
-        margin: 0 0 12px;
-        font-size: 1rem;
-        letter-spacing: 0.03em;
-        text-transform: uppercase;
-        color: rgba(15, 23, 42, 0.65);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .pane h3 {
-          color: rgba(226, 232, 255, 0.68);
-        }
-      }
-
-      .freq-svg {
-        width: 100%;
-        height: 210px;
-      }
-
-      .freq-bar {
-        transition: transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.35s ease;
-      }
-
-      .freq-bar text {
-        font-size: 10px;
-        fill: rgba(15, 23, 42, 0.6);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .freq-bar text {
-          fill: rgba(226, 232, 255, 0.65);
-        }
-      }
-
-      canvas {
-        width: 100%;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.7);
-        box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.2);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        canvas {
-          background: rgba(15, 23, 42, 0.65);
-          box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.25);
-        }
-      }
-
-      .annotations {
-        font-size: 0.86rem;
-        color: rgba(15, 23, 42, 0.72);
-        display: grid;
-        gap: 8px;
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .annotations {
-          color: rgba(226, 232, 255, 0.78);
-        }
-      }
-
-      .annotations strong {
-        font-weight: 600;
-      }
-
-      .legend-inline {
-        display: flex;
-        gap: 18px;
-        font-size: 0.84rem;
-        flex-wrap: wrap;
-        color: rgba(71, 85, 105, 0.78);
-      }
-
-      @media (prefers-color-scheme: dark) {
-        .legend-inline {
-          color: rgba(203, 213, 225, 0.78);
-        }
-      }
-
-      .legend-inline span {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .legend-inline i {
-        width: 14px;
-        height: 14px;
-        border-radius: 4px;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="page">
-      <header>
-        <h1>Orthogonal Frequency Division Multiplexing in Motion</h1>
-        <p>
-          Orthogonal Frequency Division Multiplexing (OFDM) tames frequency-selective fading and
-          inter-symbol interference by slicing a wideband channel into many narrow orthogonal
-          subcarriers. Each subcarrier sees nearly flat fading, so equalization collapses to one
-          complex coefficient per tone. Adding a cyclic prefix turns linear convolution into a cyclic
-          one, keeping symbols orthogonal after the FFT at the receiver.
-        </p>
-      </header>
-
-      <section class="card">
-        <div class="scene">
-          <div class="narrative">
-            <h2>From 802.11a theory to an interactive symbol</h2>
-            <p>
-              IEEE 802.11a pours a 20&nbsp;MHz channel into 64 orthogonal subcarriers. Forty-eight
-              carry user data, four provide pilot tones, and the rest form guard bands with a nulled
-              DC tone. The useful symbol lasts 3.2&nbsp;µs; appending a 0.8&nbsp;µs cyclic prefix
-              pushes the air time to 4&nbsp;µs while absorbing multipath echoes.
-            </p>
-            <p>
-              Use the controls to adjust the cyclic prefix length and the channel's delay spread.
-              When the prefix outpaces the delay spread, the system retains orthogonality and
-              equalization stays simple. If the channel memory spills past the prefix, adjacent OFDM
-              symbols leak into one another.
-            </p>
-
-            <div class="controls">
-              <div class="control">
-                <label for="cp-slider">Cyclic prefix length (samples)</label>
-                <input type="range" id="cp-slider" min="0" max="24" value="16" />
-                <div class="control-output" id="cp-output"></div>
-              </div>
-
-              <div class="control">
-                <label for="delay-slider">Channel delay spread (0–1.2 µs)</label>
-                <input type="range" id="delay-slider" min="0" max="120" value="60" />
-                <div class="control-output" id="delay-output"></div>
-              </div>
-
-              <div class="status" id="status-indicator">
-                Cyclic prefix shorter than delay spread → residual ISI likely.
-              </div>
-            </div>
-          </div>
-
-          <div class="visuals">
-            <div class="pane">
-              <h3>Frequency-domain allocation · 20&nbsp;MHz span</h3>
-              <svg class="freq-svg" viewBox="0 0 1000 210" id="freq-svg"></svg>
-              <div class="legend-inline" style="margin-top: 10px;">
-                <span><i style="background: #22c55e;"></i> Data subcarriers (48)</span>
-                <span><i style="background: #f59e0b;"></i> Pilot tones (4)</span>
-                <span><i style="background: rgba(15,23,42,0.25);"></i> Guard &amp; DC</span>
-              </div>
-            </div>
-
-            <div class="pane">
-              <h3>Time-domain symbol · cyclic prefix highlighted</h3>
-              <canvas id="time-canvas" width="780" height="220"></canvas>
-              <div class="annotations" id="time-annotations"></div>
-            </div>
-          </div>
-        </div>
-      </section>
+  <section class="section">
+    <div class="layout">
+      <div class="copy">
+        <h2 id="storyTitle"></h2>
+        <p id="storyA"></p>
+        <p id="storyB"></p>
+        <div class="key" id="storyKey"></div>
+        <div class="slider"><input id="echoSlider" type="range" min="4" max="18" value="9"><div class="meter" id="echoMeter"></div></div>
+      </div>
+      <div class="stage">
+        <div class="stage-head"><h3 id="stageTitle"></h3><span id="stageNote"></span></div>
+        <div class="board" id="board"></div>
+        <div class="legend"><span><i class="sw" style="background:#2563eb"></i>Useful symbol</span><span><i class="sw echo"></i>Delayed copy overlapping the next word</span><span><i class="sw" style="background:#0ea5e9"></i>Cyclic prefix</span></div>
+      </div>
     </div>
+  </section>
 
-    <script>
-      const NUM_SUBCARRIERS = 64;
-      const DATA_CARRIERS = 48;
-      const PILOT_INDICES = new Set([-21, -7, 7, 21]);
-      const SAMPLE_PERIOD_US = 3.2 / NUM_SUBCARRIERS; // 50 ns
-      const PILOT_COLOR = "#f59e0b";
-      const DATA_COLOR = "#22c55e";
-      const GUARD_COLOR = "rgba(15,23,42,0.25)";
-      const DATA_COLOR_DARK = "rgba(34,197,94,0.8)";
-      const PILOT_COLOR_DARK = "rgba(245,158,11,0.85)";
-      const GUARD_COLOR_DARK = "rgba(226,232,255,0.25)";
+  <section class="section">
+    <div class="lab">
+      <div class="copy">
+        <h2>Technical lab: subcarriers, delay spread, and the prefix budget</h2>
+        <p>The story above uses words as symbols. The actual transmitter uses complex modulation values. This lab keeps the engineering view: data subcarriers, pilot tones, guard bins, and a cyclic prefix. Move the sliders and watch whether the channel memory fits inside the prefix.</p>
+        <div class="controls">
+          <div class="control"><label for="cpSlider">Cyclic prefix length (samples)</label><input id="cpSlider" type="range" min="0" max="24" value="16"><div class="out" id="cpOut"></div></div>
+          <div class="control"><label for="delaySlider">Channel delay spread (0-1.2 us)</label><input id="delaySlider" type="range" min="0" max="120" value="60"><div class="out" id="delayOut"></div></div>
+          <div class="status" id="status">Cyclic prefix shorter than delay spread: residual ISI likely.</div>
+        </div>
+      </div>
+      <div class="visuals">
+        <div class="pane"><h3>Frequency-domain allocation - 20 MHz span</h3><svg viewBox="0 0 1000 210" id="freq"></svg><div class="legend"><span><i class="sw" style="background:#16a34a"></i>Data</span><span><i class="sw" style="background:#d97706"></i>Pilots</span><span><i class="sw" style="background:rgba(100,116,139,.45)"></i>Guard/DC</span></div></div>
+        <div class="pane"><h3>Time-domain symbol - cyclic prefix highlighted</h3><canvas id="time" width="780" height="220"></canvas><div class="ann" id="ann"></div></div>
+      </div>
+    </div>
+  </section>
+</main>
 
-      const cpSlider = document.getElementById("cp-slider");
-      const delaySlider = document.getElementById("delay-slider");
-      const cpOutput = document.getElementById("cp-output");
-      const delayOutput = document.getElementById("delay-output");
-      const statusIndicator = document.getElementById("status-indicator");
-      const freqSvg = document.getElementById("freq-svg");
-      const timeCanvas = document.getElementById("time-canvas");
-      const annotations = document.getElementById("time-annotations");
-
-      const ctx = timeCanvas.getContext("2d");
-      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-
-      function seededGrand(seed) {
-        let value = seed;
-        return () => {
-          value = (value * 1664525 + 1013904223) % 4294967296;
-          return value / 4294967296;
-        };
-      }
-
-      const rand = seededGrand(80211);
-
-      function qpskSymbol() {
-        const re = rand() > 0.5 ? 1 : -1;
-        const im = rand() > 0.5 ? 1 : -1;
-        const scale = Math.SQRT1_2;
-        return { re: re * scale, im: im * scale };
-      }
-
-      function buildFrequencyGrid() {
-        const grid = [];
-        for (let k = 0; k < NUM_SUBCARRIERS; k += 1) {
-          const bin = k - NUM_SUBCARRIERS / 2;
-          let role = "guard";
-          if (bin === 0) {
-            role = "dc";
-          } else if (bin >= -26 && bin <= 26) {
-            if (PILOT_INDICES.has(bin)) role = "pilot";
-            else role = "data";
-          }
-          grid.push({ bin, role, symbol: { re: 0, im: 0 } });
-        }
-        return grid;
-      }
-
-      const frequencyGrid = buildFrequencyGrid();
-
-      frequencyGrid.forEach((entry) => {
-        if (entry.role === "data" || entry.role === "pilot") {
-          entry.symbol = qpskSymbol();
-        } else {
-          entry.symbol = { re: 0, im: 0 };
-        }
-        if (entry.role === "pilot") {
-          entry.symbol = { re: Math.SQRT1_2, im: Math.SQRT1_2 };
-        }
-      });
-
-      const freqSvgWidth = 1000;
-      const freqSvgHeight = 210;
-
-      function renderFrequencyPlot() {
-        const barWidth = freqSvgWidth / NUM_SUBCARRIERS;
-        const midline = freqSvgHeight / 2 + 28;
-
-        freqSvg.innerHTML = "";
-
-        const axisLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
-        axisLine.setAttribute("x1", "0");
-        axisLine.setAttribute("y1", String(midline));
-        axisLine.setAttribute("x2", String(freqSvgWidth));
-        axisLine.setAttribute("y2", String(midline));
-        axisLine.setAttribute("stroke", prefersDark ? "rgba(226,232,255,0.25)" : "rgba(15,23,42,0.18)");
-        axisLine.setAttribute("stroke-width", "1.2");
-        freqSvg.appendChild(axisLine);
-
-        frequencyGrid.forEach((entry, idx) => {
-          const group = document.createElementNS("http://www.w3.org/2000/svg", "g");
-          group.setAttribute("class", "freq-bar");
-          const x = idx * barWidth;
-          const amplitude = Math.hypot(entry.symbol.re, entry.symbol.im);
-          const barHeight = amplitude * 60 + (entry.role === "pilot" ? 18 : 0);
-
-          const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-          rect.setAttribute("x", String(x + barWidth * 0.18));
-          rect.setAttribute("width", String(barWidth * 0.64));
-          rect.setAttribute("rx", "4");
-          rect.setAttribute("ry", "4");
-          rect.setAttribute("y", String(midline - barHeight));
-          rect.setAttribute("height", String(barHeight));
-
-          let color = prefersDark ? GUARD_COLOR_DARK : GUARD_COLOR;
-          if (entry.role === "data") {
-            color = prefersDark ? DATA_COLOR_DARK : DATA_COLOR;
-          } else if (entry.role === "pilot") {
-            color = prefersDark ? PILOT_COLOR_DARK : PILOT_COLOR;
-          }
-          rect.setAttribute("fill", color);
-          group.appendChild(rect);
-
-          if (entry.role === "pilot") {
-            const label = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            label.textContent = "Pilot";
-            label.setAttribute("x", String(x + barWidth / 2));
-            label.setAttribute("y", String(midline - barHeight - 8));
-            label.setAttribute("text-anchor", "middle");
-            group.appendChild(label);
-          }
-
-          if (entry.bin === -26 || entry.bin === 26) {
-            const edgeLabel = document.createElementNS("http://www.w3.org/2000/svg", "text");
-            edgeLabel.textContent = entry.bin === -26 ? "-10 MHz" : "+10 MHz";
-            edgeLabel.setAttribute("x", String(x + barWidth / 2));
-            edgeLabel.setAttribute("y", String(midline + 48));
-            edgeLabel.setAttribute("text-anchor", "middle");
-            edgeLabel.setAttribute("font-size", "11px");
-            group.appendChild(edgeLabel);
-          }
-          freqSvg.appendChild(group);
-        });
-      }
-
-      function ifftFrequencyToTime(freqBins) {
-        const samples = new Array(NUM_SUBCARRIERS).fill(null).map(() => ({ re: 0, im: 0 }));
-        for (let n = 0; n < NUM_SUBCARRIERS; n += 1) {
-          let sumRe = 0;
-          let sumIm = 0;
-          for (let k = 0; k < NUM_SUBCARRIERS; k += 1) {
-            const freqIndex = (k + NUM_SUBCARRIERS / 2) % NUM_SUBCARRIERS;
-            const binValue = freqBins[freqIndex].symbol;
-            const angle = (2 * Math.PI * k * n) / NUM_SUBCARRIERS;
-            const cos = Math.cos(angle);
-            const sin = Math.sin(angle);
-            sumRe += binValue.re * cos - binValue.im * sin;
-            sumIm += binValue.re * sin + binValue.im * cos;
-          }
-          samples[n] = { re: sumRe / NUM_SUBCARRIERS, im: sumIm / NUM_SUBCARRIERS };
-        }
-        return samples;
-      }
-
-      const baseTimeSamples = ifftFrequencyToTime(frequencyGrid);
-
-      function drawTimeDomain(cpLengthSamples, delaySpreadUs) {
-        const width = timeCanvas.width;
-        const height = timeCanvas.height;
-        ctx.clearRect(0, 0, width, height);
-
-        const totalSamples = NUM_SUBCARRIERS + cpLengthSamples;
-        const cpTime = cpLengthSamples * SAMPLE_PERIOD_US;
-        const usefulTime = NUM_SUBCARRIERS * SAMPLE_PERIOD_US;
-        const totalTime = usefulTime + cpTime;
-        const delaySamples = Math.round(delaySpreadUs / SAMPLE_PERIOD_US);
-
-        const marginLeft = 36;
-        const marginRight = 16;
-        const drawableWidth = width - marginLeft - marginRight;
-        const centerY = height / 2;
-        const scaleY = height * 0.38;
-        const sampleWidth = drawableWidth / Math.max(1, totalSamples - 1);
-        const cpPixelWidth = cpLengthSamples * sampleWidth;
-        const cpStartX = marginLeft;
-        const dataStartX = cpStartX + cpPixelWidth;
-        const leakingSamples = Math.max(0, delaySamples - cpLengthSamples);
-
-        ctx.fillStyle = prefersDark ? "rgba(59,130,246,0.22)" : "rgba(59,130,246,0.18)";
-        if (cpLengthSamples > 0) {
-          ctx.fillRect(cpStartX, 0, cpPixelWidth, height);
-        }
-
-        if (leakingSamples > 0) {
-          const leakageFill = prefersDark ? "rgba(239,68,68,0.26)" : "rgba(239,68,68,0.22)";
-          ctx.fillStyle = leakageFill;
-          ctx.fillRect(dataStartX, 0, leakingSamples * sampleWidth, height);
-        }
-
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = prefersDark ? "rgba(148,163,184,0.35)" : "rgba(15,23,42,0.22)";
-        ctx.beginPath();
-        ctx.moveTo(0, centerY);
-        ctx.lineTo(width, centerY);
-        ctx.stroke();
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(marginLeft, 12, drawableWidth, height - 24);
-        ctx.clip();
-
-        ctx.strokeStyle = prefersDark ? "rgba(203,213,225,0.9)" : "rgba(15,23,42,0.85)";
-        ctx.lineWidth = 1.4;
-        ctx.beginPath();
-        for (let idx = 0; idx < totalSamples; idx += 1) {
-          let sample;
-          if (idx < cpLengthSamples) {
-            sample = baseTimeSamples[NUM_SUBCARRIERS - cpLengthSamples + idx];
-          } else {
-            sample = baseTimeSamples[idx - cpLengthSamples];
-          }
-          const x = marginLeft + idx * sampleWidth;
-          const y = centerY - sample.re * scaleY;
-          if (idx === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-
-        ctx.strokeStyle = prefersDark ? "rgba(59,130,246,0.6)" : "rgba(37,99,235,0.75)";
-        ctx.setLineDash([6, 4]);
-        ctx.beginPath();
-        for (let idx = 0; idx < totalSamples; idx += 1) {
-          let sample;
-          if (idx < cpLengthSamples) {
-            sample = baseTimeSamples[NUM_SUBCARRIERS - cpLengthSamples + idx];
-          } else {
-            sample = baseTimeSamples[idx - cpLengthSamples];
-          }
-          const x = marginLeft + idx * sampleWidth;
-          const y = centerY - sample.im * scaleY;
-          if (idx === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.restore();
-
-        ctx.fillStyle = prefersDark ? "rgba(226,232,255,0.72)" : "rgba(15,23,42,0.72)";
-        ctx.font = "12px Inter, sans-serif";
-        ctx.fillText("Cyclic prefix", Math.max(cpStartX + 6, marginLeft + 6), 22);
-        ctx.fillText("Useful OFDM symbol", dataStartX + 8, 22);
-        const leakageTime = Math.max(0, leakingSamples) * SAMPLE_PERIOD_US;
-        annotations.innerHTML = `
-          <div><strong>Useful symbol:</strong> ${usefulTime.toFixed(2)} µs (64 samples)</div>
-          <div><strong>Cyclic prefix:</strong> ${cpTime.toFixed(2)} µs (${cpLengthSamples} samples)</div>
-          <div><strong>Channel delay spread:</strong> ${delaySpreadUs.toFixed(2)} µs (~${delaySamples} samples)</div>
-          ${
-            leakingSamples > 0
-              ? `<div><strong>Leakage:</strong> ${leakageTime.toFixed(2)} µs of multipath spills into the data window.</div>`
-              : `<div><strong>Leakage:</strong> No residual ISI — echoes stay inside the prefix.</div>`
-          }
-          <div><strong>Total airtime:</strong> ${totalTime.toFixed(2)} µs</div>
-        `;
-      }
-      function updateStatus(cpLengthSamples, delaySpreadUs) {
-        const cpTime = cpLengthSamples * SAMPLE_PERIOD_US;
-        statusIndicator.classList.remove("ok", "warn");
-        if (cpTime >= delaySpreadUs) {
-          statusIndicator.classList.add("ok");
-          statusIndicator.textContent =
-            "CP ≥ delay spread → convolution looks cyclic, orthogonality preserved.";
-        } else if (cpTime >= delaySpreadUs * 0.6) {
-          statusIndicator.classList.add("warn");
-          statusIndicator.textContent =
-            "CP slightly shorter than delay spread → some ISI leakage is likely.";
-        } else {
-          statusIndicator.textContent =
-            "Cyclic prefix shorter than delay spread → residual ISI likely.";
-        }
-      }
-
-      function updateOutputs(cpLengthSamples, delaySpreadUs) {
-        const cpTime = cpLengthSamples * SAMPLE_PERIOD_US;
-        cpOutput.textContent = `Prefix duration: ${cpTime.toFixed(2)} µs (802.11a uses 0.8 µs → 16 samples)`;
-        delayOutput.textContent = `Delay spread: ${delaySpreadUs.toFixed(2)} µs`;
-      }
-
-      function refresh() {
-        const cpSamples = Number.parseInt(cpSlider.value, 10);
-        const delayUs = Number.parseInt(delaySlider.value, 10) / 120;
-        const delaySpread = delayUs * 1.2;
-
-        updateOutputs(cpSamples, delaySpread);
-        updateStatus(cpSamples, delaySpread);
-        drawTimeDomain(cpSamples, delaySpread);
-      }
-
-      cpSlider.addEventListener("input", refresh);
-      delaySlider.addEventListener("input", refresh);
-
-      renderFrequencyPlot();
-      refresh();
-    </script>
-  </body>
+<script>
+const steps={single:{t:"The problem: echoes make one word land on the next word",a:"Imagine words shouted into a tunnel. The direct sound arrives first, but a delayed copy follows it. In a receiver, that delayed copy is channel memory: part of the previous symbol arrives while the receiver is trying to read the next one.",b:"A fast single-carrier stream packs symbols tightly in time. The same echo therefore covers a large fraction of the next symbol, so the receiver sees a corrupted mixture rather than a clean word.",k:"Short symbols plus a fixed echo: the previous word visibly overlaps the next one.",st:"Single-carrier stream",n:"One input stream goes through one wide channel.",m:"single"},ofdm:{t:"OFDM splits the same input stream into slower sub-streams",a:"Start with the same nine input symbols. OFDM spreads them across three narrower subcarriers, so each lane carries only three symbols.",b:"Because each lane is narrower in frequency, its symbols are longer in time. The delayed copy has the same absolute length as before, but now it covers a much smaller fraction of the next word.",k:"Same input, same echo width, longer symbols: the overlap is still there, but it hurts less.",st:"OFDM split before the channel",n:"Input stream -> OFDM splitter -> three slower subcarriers -> channel -> echoed output.",m:"ofdm"},cp:{t:"The cyclic prefix puts a sacrificial buffer before the useful word",a:"OFDM then copies the end of each useful symbol and places that copy at the beginning. The receiver discards this prefix before reading the symbol.",b:"Now the delayed copy mostly lands on the prefix instead of the useful word. If the prefix is long enough for the channel memory, the receiver can throw away the damaged part and keep the useful symbol clean.",k:"CP is not decoration. It is the part we let the echo damage on purpose.",st:"OFDM symbols with cyclic prefix",n:"The striped prefix is thrown away at the receiver.",m:"cp"}};
+const words=["ONE","DAY","WE","SEND","DATA","THROUGH","THE","RADIO","CHANNEL"],board=document.getElementById("board"),tabs=[...document.querySelectorAll(".tab")],echoSlider=document.getElementById("echoSlider");let active="single";
+function div(c,t){const e=document.createElement("div");e.className=c;if(t)e.textContent=t;return e}
+function drawSym(l,left,width,label,i,cp,echo=true,echoLabel=""){let cpStart=left,cpWidth=0;if(cp){cpWidth=Math.max(8,width*.24);const c=div("cp","CP");c.style.left=cpStart+"%";c.style.width=cpWidth+"%";l.appendChild(c);left+=cpWidth;width-=cpWidth}const s=div("sym s"+i%4,label);s.style.left=left+"%";s.style.width=width+"%";l.appendChild(s);if(echo&&echoLabel){const ew=Number(echoSlider.value),e=div("echo",echoLabel);e.style.left=(cp?cpStart:left)+"%";e.style.width=ew+"%";l.appendChild(e)}if(cp){const w=div("win");w.style.left=left+"%";w.style.width=width+"%";l.appendChild(w)}}
+function lane(label){const l=div("lane");l.appendChild(div("lane-label",label));return l}
+function drawSingleLane(label,echo){const l=lane(label),w=10.2;words.forEach((x,i)=>drawSym(l,2.5+i*w,w-1,x,i,false,echo,i>0?words[i-1]:""));return l}
+function drawOfdmSide(label,cp,echo){const side=div("flow-side");for(let r=0;r<3;r++){const l=lane(label+" "+(r+1)),laneWords=words.filter((_,i)=>i%3===r);laneWords.forEach((x,i)=>drawSym(l,4+i*30,cp?27:25,x,i+r,cp,echo,i>0?laneWords[i-1]:""));side.appendChild(l)}return side}
+function renderLanes(mode){board.innerHTML="";if(mode==="single"){const f=div("flow");const left=div("flow-side");left.appendChild(drawSingleLane("input: short symbols",false));const ch=div("channel","channel");const right=div("flow-side");right.appendChild(drawSingleLane("output: delayed words overlap",true));f.append(left,ch,right);board.appendChild(f)}else{const f=div("ofdm-flow");const input=div("flow-side");input.appendChild(drawSingleLane("same input stream",false));f.append(input,div("splitter","OFDM split"),drawOfdmSide("subcarrier",mode==="cp",false),div("channel","channel"),drawOfdmSide("output subcarrier",mode==="cp",true));board.appendChild(f)}}
+function renderStory(){const s=steps[active];storyTitle.textContent=s.t;storyA.textContent=s.a;storyB.textContent=s.b;storyKey.textContent=s.k;stageTitle.textContent=s.st;stageNote.textContent=s.n;echoMeter.textContent="Echo: "+echoSlider.value+"%";tabs.forEach(b=>b.classList.toggle("active",b.dataset.step===active));renderLanes(s.m)}
+tabs.forEach(b=>b.onclick=()=>{active=b.dataset.step;renderStory()});echoSlider.oninput=renderStory;
+const N=64,pilots=new Set([-21,-7,7,21]),Ts=3.2/N,freq=document.getElementById("freq"),time=document.getElementById("time"),ctx=time.getContext("2d"),dark=matchMedia("(prefers-color-scheme: dark)").matches;
+function rng(seed){let v=seed;return()=>{v=(v*1664525+1013904223)%4294967296;return v/4294967296}}const r=rng(80211);
+function qpsk(){const k=Math.SQRT1_2;return{re:(r()>.5?1:-1)*k,im:(r()>.5?1:-1)*k}}
+const bins=[];for(let k=0;k<N;k++){const bin=k-N/2;let role="guard";if(bin===0)role="dc";else if(bin>=-26&&bin<=26)role=pilots.has(bin)?"pilot":"data";bins.push({bin,role,sym:role==="guard"||role==="dc"?{re:0,im:0}:qpsk()});if(role==="pilot")bins[k].sym={re:Math.SQRT1_2,im:Math.SQRT1_2}}
+function renderFreq(){freq.innerHTML="";const bw=1000/N,mid=133;bins.forEach((b,i)=>{const g=document.createElementNS("http://www.w3.org/2000/svg","g"),h=Math.hypot(b.sym.re,b.sym.im)*60+(b.role==="pilot"?18:0),x=i*bw,rect=document.createElementNS("http://www.w3.org/2000/svg","rect");rect.setAttribute("x",x+bw*.18);rect.setAttribute("y",mid-h);rect.setAttribute("width",bw*.64);rect.setAttribute("height",h);rect.setAttribute("rx",4);rect.setAttribute("fill",b.role==="data"?"#16a34a":b.role==="pilot"?"#d97706":dark?"rgba(226,232,255,.25)":"rgba(100,116,139,.35)");g.appendChild(rect);if(b.role==="pilot"){const t=document.createElementNS("http://www.w3.org/2000/svg","text");t.textContent="Pilot";t.setAttribute("x",x+bw/2);t.setAttribute("y",mid-h-8);t.setAttribute("text-anchor","middle");t.setAttribute("font-size","10");t.setAttribute("fill",dark?"#cbd5e1":"#475569");g.appendChild(t)}freq.appendChild(g)})}
+function ifft(){const out=[];for(let n=0;n<N;n++){let re=0,im=0;for(let k=0;k<N;k++){const v=bins[(k+N/2)%N].sym,a=2*Math.PI*k*n/N;re+=v.re*Math.cos(a)-v.im*Math.sin(a);im+=v.re*Math.sin(a)+v.im*Math.cos(a)}out.push({re:re/N,im:im/N})}return out}const samples=ifft();
+function drawLab(){const cp=+cpSlider.value,delay=(+delaySlider.value/120)*1.2,cpTime=cp*Ts,delaySamples=Math.round(delay/Ts),leak=Math.max(0,delaySamples-cp),w=time.width,h=time.height,total=N+cp,ml=36,dw=w-52,cx=ml+cp*dw/Math.max(1,total-1),cy=h/2,sw=dw/Math.max(1,total-1);ctx.clearRect(0,0,w,h);ctx.fillStyle=dark?"rgba(59,130,246,.22)":"rgba(59,130,246,.18)";if(cp)ctx.fillRect(ml,0,cp*sw,h);if(leak){ctx.fillStyle=dark?"rgba(220,38,38,.28)":"rgba(220,38,38,.2)";ctx.fillRect(cx,0,leak*sw,h)}ctx.strokeStyle=dark?"#cbd5e1":"#172033";ctx.lineWidth=1.4;ctx.beginPath();for(let i=0;i<total;i++){const s=i<cp?samples[N-cp+i]:samples[i-cp],x=ml+i*sw,y=cy-s.re*h*.38;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)}ctx.stroke();ctx.setLineDash([6,4]);ctx.strokeStyle="#2563eb";ctx.beginPath();for(let i=0;i<total;i++){const s=i<cp?samples[N-cp+i]:samples[i-cp],x=ml+i*sw,y=cy-s.im*h*.38;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)}ctx.stroke();ctx.setLineDash([]);ctx.fillStyle=dark?"#cbd5e1":"#475569";ctx.font="12px Inter,Arial";ctx.fillText("Cyclic prefix",ml+6,22);ctx.fillText("Useful OFDM symbol",cx+8,22);cpOut.textContent=`Prefix duration: ${cpTime.toFixed(2)} us`;delayOut.textContent=`Delay spread: ${delay.toFixed(2)} us`;status.className="status";if(cpTime>=delay){status.classList.add("ok");status.textContent="CP >= delay spread: echoes fit inside the discarded prefix."}else if(cpTime>=delay*.6){status.classList.add("warn");status.textContent="CP is slightly short: some ISI leakage is likely."}else status.textContent="Cyclic prefix shorter than delay spread: residual ISI likely.";ann.innerHTML=`<div><strong>Useful symbol:</strong> 3.20 us (64 samples)</div><div><strong>Cyclic prefix:</strong> ${cpTime.toFixed(2)} us (${cp} samples)</div><div><strong>Leakage:</strong> ${leak? (leak*Ts).toFixed(2)+" us spills into the data window":"no residual ISI; echoes stay inside the prefix"}</div>`}
+cpSlider.oninput=drawLab;delaySlider.oninput=drawLab;renderStory();renderFreq();drawLab();
+</script>
+</body>
 </html>
