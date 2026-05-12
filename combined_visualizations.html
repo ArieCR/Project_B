@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>Combined Visualizations</title>
+<title>3GPP Long Term Evolution</title>
 <style>
   body {
     font-family: sans-serif;
@@ -20,10 +20,79 @@
     width: 100%;
     display: block;
   }
+  .full-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 1000px;
+    box-sizing: border-box;
+    padding: 60px 40px;
+  }
+  .divider {
+    width: 55%;
+    border: none;
+    border-top: 1px solid #bbb;
+    margin: 1.2em auto;
+  }
 </style>
 </head>
 <body>
-<h1>Combined Visualizations</h1>
+
+<!-- Cover Page -->
+<div class="full-page" style="background: #f0f4f8; text-align: center;">
+  <h1 style="font-size: 2.6em; margin: 0 0 0.2em; color: #1a1a2e; letter-spacing: 0.02em;">3GPP Long Term Evolution</h1>
+  <hr class="divider">
+  <p style="font-size: 1.05em; color: #555; margin: 0 0 2.5em;">Spring 2025</p>
+  <table style="font-size: 1.1em; border-collapse: collapse; color: #222; margin-bottom: 2.5em;">
+    <thead>
+      <tr>
+        <th style="padding: 6px 32px; text-align: left; color: #666; font-weight: normal; border-bottom: 1px solid #ccc;">Name</th>
+        <th style="padding: 6px 32px; text-align: left; color: #666; font-weight: normal; border-bottom: 1px solid #ccc;">ID</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding: 10px 32px; font-weight: bold;">Arie Creson</td>
+        <td style="padding: 10px 32px; color: #444;">206581076</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px 32px; font-weight: bold;">Israel Bukris</td>
+        <td style="padding: 10px 32px; color: #444;">211729355</td>
+      </tr>
+    </tbody>
+  </table>
+  <p style="font-size: 1em; color: #555; margin: 0;">Advisor: <strong>Alexander Hodisan</strong></p>
+</div>
+
+<!-- Outline Page -->
+<div class="full-page" style="background: #fff; border-top: 2px solid #e0e0e0;">
+  <h2 style="font-size: 1.9em; margin: 0 0 0.6em; color: #1a1a2e; background: none; padding: 0;">Outline</h2>
+  <hr class="divider">
+  <ol style="font-size: 1.1em; line-height: 2; color: #222; text-align: left; padding-left: 1.5em; margin: 0;">
+    <li>Introduction I — Compression Animation</li>
+    <li>Introduction II — Constellation Morph</li>
+    <li>1.2 — OFDM Modulation</li>
+    <li>1.5 — OFDM Explorer</li>
+    <li>2.2 — LTE Bandwidth vs Resource Blocks</li>
+    <li>2.3 — LTE Duplexing</li>
+    <li>2.6 — OFDMA Downlink Scheduler</li>
+    <li>2.7 — Different Modulation Schemes</li>
+    <li>3.2 — Transmission Reception Layer</li>
+  </ol>
+  <div style="margin-top: 2.5em; padding: 18px 24px; background: #eef3fb; border-left: 4px solid #3f51b5; border-radius: 4px; max-width: 80%; text-align: center;">
+    <p style="margin: 0 0 0.4em; font-size: 1em; color: #333;">
+      The visualizations below are interactive in the browser.
+    </p>
+    <p style="margin: 0; font-size: 1em;">
+      View the full interactive version at:
+      <a href="https://ariecr.github.io/Project_B/combined_visualizations.html"
+         style="color: #1a237e; font-weight: bold; word-break: break-all;">
+        ariecr.github.io/Project_B/combined_visualizations.html
+      </a>
+    </p>
+  </div>
+</div>
 
 <div class="visualization-container">
   <h2>Introduction I</h2>
